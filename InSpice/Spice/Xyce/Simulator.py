@@ -69,7 +69,7 @@ class XyceSimulator(Simulator):
     def run(self, simulation, *args, **kwargs):
 
         # Fixme: NEED TO BE TESTED !!!
-        raw_file = self._xyce_server(spice_input=str(self))
+        raw_file = self._xyce_server(spice_input=str(simulation))
         raw_file.simulation = simulation
 
         # for field in raw_file.variables:

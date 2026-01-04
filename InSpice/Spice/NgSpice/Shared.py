@@ -171,24 +171,24 @@ class Vector:
     ##############################################
 
     @property
-    def is_interval_parameter(self):
+    def is_internal_parameter(self):
         return self._name.startswith('@')
 
     ##############################################
 
     @property
     def is_voltage_node(self):
-        return self._type == self._ngspice_shared.simulation_type.voltage and not self.is_interval_parameter
+        return self._type == self._ngspice_shared.simulation_type.voltage and not self.is_internal_parameter
 
 
     @property
     def is_node_current(self):
-        return self._type == self._ngspice_shared.simulation_type.current and self.is_interval_parameter
+        return self._type == self._ngspice_shared.simulation_type.current and self.is_internal_parameter
     ##############################################
 
     @property
     def is_branch_current(self):
-        return self._type == self._ngspice_shared.simulation_type.current and not self.is_interval_parameter
+        return self._type == self._ngspice_shared.simulation_type.current and not self.is_internal_parameter
 
     ##############################################
 
@@ -266,7 +266,7 @@ class Plot(dict):
     def internal_parameters(self, to_float=False, abscissa=None):
         return [variable.to_waveform(abscissa, to_float=to_float)
                 for variable in self.values()
-                if variable.is_interval_parameter]
+                if variable.is_internal_parameter]
 
     ##############################################
 

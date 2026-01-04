@@ -710,7 +710,7 @@ class Simulation:
 
         if self._saved_nodes:
             # Place 'all' first
-            saved_nodes = self._saved_nodes
+            saved_nodes = self._saved_nodes.copy()
             if 'all' in saved_nodes:
                 all_str = 'all '
                 saved_nodes.remove('all')

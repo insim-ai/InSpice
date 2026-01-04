@@ -110,8 +110,15 @@ class VariableAbc:
     ##############################################
 
     @property
-    def is_interval_parameter(self):
+    def is_internal_parameter(self):
         return self.name.startswith('@') # Fixme: Xyce ???
+
+    ##############################################
+
+    def is_node_current(self):
+        # Node currents are enabled by .options SAVECURRENTS
+        # They start with '@' (internal parameters) and represent current into nodes
+        return self.is_internal_parameter and not self.name.lower().startswith('v(')
 
     ##############################################
 
@@ -324,10 +331,17 @@ class RawFileAbc:
 
     ##############################################
 
+    def node_currents(self, to_float=False, abscissa=None):
+        return [variable.to_waveform(abscissa, to_float=to_float)
+                for variable in self.variables.values()
+                if variable.is_node_current()]
+
+    ##############################################
+
     def internal_parameters(self, to_float=False, abscissa=None):
         return [variable.to_waveform(abscissa, to_float=to_float)
                 for variable in self.variables.values()
-                if variable.is_interval_parameter]
+                if variable.is_internal_parameter]
 
     ##############################################
 
@@ -408,5 +422,6 @@ class RawFileAbc:
             time=time,
             nodes=self.nodes(abscissa=time),
             branches=self.branches(abscissa=time),
+            node_currents=self.node_currents(abscissa=time),
             internal_parameters=self.internal_parameters(),
         )

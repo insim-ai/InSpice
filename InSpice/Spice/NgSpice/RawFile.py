@@ -189,6 +189,11 @@ class RawFile(RawFileAbc):
         # self._logger.debug(os.linesep + stdout[:raw_data_start].decode('utf-8'))
         header_lines = stdout[:binary_location].splitlines()
         raw_data = stdout[raw_data_start:]
+        # Skip informational "Note:" lines from newer ngspice versions
+        for i, line in enumerate(header_lines):
+            if line.startswith(b'Circuit:'):
+                header_lines = header_lines[i:]
+                break
         header_line_iterator = iter(header_lines)
 
         self.circuit_name = self._read_header_field_line(header_line_iterator, 'Circuit')
