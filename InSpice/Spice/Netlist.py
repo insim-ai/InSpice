@@ -545,7 +545,7 @@ class SubCircuit(Netlist):
         """Return the formatted subcircuit definition."""
         netlist = TextBuffer()
         nodes = join_list(self._external_nodes)
-        parameters = join_list(['f{key}={value}'
+        parameters = join_list([f'{key}={value}'
                                 for key, value in self._parameters.items()])
         netlist += '.subckt ' + join_list((self._name, nodes, parameters))
         netlist += super().__str__()
