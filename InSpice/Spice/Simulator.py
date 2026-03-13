@@ -70,6 +70,7 @@ class Simulator:
         'xyce',
         'xyce-serial',
         'xyce-parallel',
+        'vacask',
     )
 
     SIMULATOR = None   # for subclass
@@ -92,6 +93,7 @@ class Simulator:
         * :code:`xyce` **alias for serial**
         * :code:`xyce-serial`
         * :code:`xyce-parallel`
+        * :code:`vacask`
 
         Return a :obj:`InSpice.Spice.Simulator` subclass.
 
@@ -118,6 +120,10 @@ class Simulator:
             sub_cls = XyceSimulator
             if simulator == 'xyce-parallel':
                 kwargs['parallel'] = True
+
+        elif simulator == 'vacask':
+            from .Vacask.Simulator import VacaskSimulator
+            sub_cls = VacaskSimulator
 
         if sub_cls is not None:
             obj = sub_cls(*args, **kwargs)
