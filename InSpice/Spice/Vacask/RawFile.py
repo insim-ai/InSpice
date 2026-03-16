@@ -25,6 +25,7 @@
 import logging
 import os
 
+from InSpice.Unit import u_V, u_A, u_s, u_Hz
 from ..RawFile import VariableAbc, RawFileAbc
 
 ####################################################################################################
@@ -56,9 +57,17 @@ class VacaskVariable(VariableAbc):
 
     @property
     def simplified_name(self):
+        name = self.name
         if self.is_branch_current():
-            return self.name.split(':')[0]
-        return self.name
+            # "vinput:flow(br)" -> "vinput"
+            # After fix_case: "i(Vinput)" -> "Vinput"
+            if name.startswith('i(') and name.endswith(')'):
+                return name[2:-1]
+            return name.split(':')[0]
+        # After fix_case: "v(out)" -> "out"
+        if name.startswith('v(') and name.endswith(')'):
+            return name[2:-1]
+        return name
 
 ####################################################################################################
 
@@ -101,6 +110,35 @@ class VacaskRawFile(RawFileAbc):
 
     ##############################################
 
+    def _read_header_variables(self, header_line_iterator):
+        """Override to handle VACASK's 'notype' unit by inferring from variable name."""
+        self.variables = {}
+        for i in range(self.number_of_variables):
+            line = (next(header_line_iterator)).decode('utf-8')
+            self._logger.debug(line)
+            items = [x.strip() for x in line.split('\t') if x]
+            index, name = items[0], items[1]
+            raw_unit = items[2] if len(items) > 2 else 'notype'
+            unit = self._name_to_unit.get(raw_unit)
+            if unit is None:
+                unit = self._infer_unit(name)
+            self.variables[name] = self._variable_cls(index, name, unit)
+
+    ##############################################
+
+    @staticmethod
+    def _infer_unit(name):
+        if name == 'time':
+            return u_s
+        elif name == 'frequency':
+            return u_Hz
+        elif ':flow(br)' in name:
+            return u_A
+        else:
+            return u_V
+
+    ##############################################
+
     def fix_case(self):
         circuit = self.circuit
         element_translation = {element.lower(): element for element in circuit.element_names}
@@ -110,7 +148,28 @@ class VacaskRawFile(RawFileAbc):
 
     ##############################################
 
+    def to_analysis(self):
+        self.fix_case()
+
+        plot = self.plot_name
+        if plot == 'Operating Point':
+            # VACASK DC sweep produces "Operating Point" with multiple points
+            if self.number_of_points > 1:
+                return self._to_dc_analysis()
+            return self._to_operating_point_analysis()
+        elif plot == 'DC transfer characteristic':
+            return self._to_dc_analysis()
+        elif plot in ('AC Analysis', 'AC Small Signal Analysis'):
+            return self._to_ac_analysis()
+        elif plot == 'Transient Analysis':
+            return self._to_transient_analysis()
+        elif plot == 'Noise Analysis':
+            return self._to_noise_analysis()
+        else:
+            raise NotImplementedError("Unsupported plot name {}".format(plot))
+
+    ##############################################
+
     def _to_dc_analysis(self):
-        # VACASK DC sweep: first variable is the sweep variable
         first_var = next(iter(self.variables.values()))
         return super()._to_dc_analysis(first_var)

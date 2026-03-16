@@ -125,8 +125,8 @@ class TestVacaskNetlistGeneration(unittest.TestCase):
         simulation.operating_point(run=False)
 
         netlist = str(simulation)
-        self.assertIn('model 1n4148 sp_diode', netlist)
-        self.assertIn('d1 (out 0) 1n4148', netlist)
+        self.assertIn('model mod_1n4148 sp_diode', netlist)
+        self.assertIn('d1 (out 0) mod_1n4148', netlist)
         self.assertIn('spice/diode.osdi', netlist)
 
     ##############################################

@@ -157,6 +157,13 @@ def _format_value(value):
     except (TypeError, ValueError):
         return str(value)
 
+def _vacask_identifier(name):
+    """Ensure a name is a valid VACASK identifier (can't start with a digit)."""
+    name = name.lower()
+    if name and name[0].isdigit():
+        return 'mod_' + name
+    return name
+
 ####################################################################################################
 
 class VacaskSimulation(Simulation):
@@ -208,24 +215,30 @@ class VacaskSimulation(Simulation):
                     osdi_file, _ = DEFAULT_MODELS[prefix]
                     osdi_files.add(osdi_file)
 
-        # Always load vsource/isource for V/I elements
+        return osdi_files
+
+    ##############################################
+
+    def _collect_builtin_models(self):
+        """Collect built-in model declarations needed (vsource, isource, controlled sources)."""
+        builtins = set()
         for element in self._circuit.elements:
             if not element.enabled:
                 continue
-            if element.PREFIX == 'V':
-                osdi_files.add('spice/vsource.osdi')
-            elif element.PREFIX == 'I':
-                osdi_files.add('spice/isource.osdi')
-            elif element.PREFIX == 'E':
-                osdi_files.add('spice/vcvs.osdi')
-            elif element.PREFIX == 'G':
-                osdi_files.add('spice/vccs.osdi')
-            elif element.PREFIX == 'F':
-                osdi_files.add('spice/cccs.osdi')
-            elif element.PREFIX == 'H':
-                osdi_files.add('spice/ccvs.osdi')
-
-        return osdi_files
+            prefix = element.PREFIX
+            if prefix == 'V':
+                builtins.add('vsource')
+            elif prefix == 'I':
+                builtins.add('isource')
+            elif prefix == 'E':
+                builtins.add('vcvs')
+            elif prefix == 'G':
+                builtins.add('vccs')
+            elif prefix == 'F':
+                builtins.add('cccs')
+            elif prefix == 'H':
+                builtins.add('ccvs')
+        return builtins
 
     ##############################################
 
@@ -297,7 +310,7 @@ class VacaskSimulation(Simulation):
             params[p] = _format_value(model[param_name])
 
         param_str = ' '.join(f'{k}={v}' for k, v in params.items())
-        name = model.name.lower()
+        name = _vacask_identifier(model.name)
         if param_str:
             return f"model {name} {module_name} {param_str}"
         else:
@@ -338,22 +351,20 @@ class VacaskSimulation(Simulation):
 
     def _translate_resistor(self, element, name, nodes):
         if self._element_has_model(element):
-            model_name = str(element.model).lower()
-            params = f"r={_format_value(element.resistance)}"
+            model_name = _vacask_identifier(str(element.model))
         else:
             model_name = 'sp_resistor'
-            params = f"r={_format_value(element.resistance)}"
+        params = f"r={_format_value(element.resistance)}"
         return f"{name} ({nodes}) {model_name} {params}"
 
     ##############################################
 
     def _translate_capacitor(self, element, name, nodes):
         if self._element_has_model(element):
-            model_name = str(element.model).lower()
-            params = f"c={_format_value(element.capacitance)}"
+            model_name = _vacask_identifier(str(element.model))
         else:
             model_name = 'sp_capacitor'
-            params = f"c={_format_value(element.capacitance)}"
+        params = f"c={_format_value(element.capacitance)}"
         ic = self._get_element_param(element, 'initial_condition')
         if ic is not None:
             params += f" ic={_format_value(ic)}"
@@ -363,11 +374,10 @@ class VacaskSimulation(Simulation):
 
     def _translate_inductor(self, element, name, nodes):
         if self._element_has_model(element):
-            model_name = str(element.model).lower()
-            params = f"l={_format_value(element.inductance)}"
+            model_name = _vacask_identifier(str(element.model))
         else:
             model_name = 'sp_inductor'
-            params = f"l={_format_value(element.inductance)}"
+        params = f"l={_format_value(element.inductance)}"
         ic = self._get_element_param(element, 'initial_condition')
         if ic is not None:
             params += f" ic={_format_value(ic)}"
@@ -457,7 +467,7 @@ class VacaskSimulation(Simulation):
 
     def _translate_semiconductor(self, element, name, nodes):
         """Translate D, Q, M, J, Z elements."""
-        model_name = str(element.model).lower()
+        model_name = _vacask_identifier(str(element.model))
         params = self._collect_instance_params(element)
         param_str = ' '.join(f'{k}={v}' for k, v in params.items())
         if param_str:
@@ -720,6 +730,9 @@ class VacaskSimulation(Simulation):
         for prefix in sorted(default_models_needed):
             _, module = DEFAULT_MODELS[prefix]
             model_lines.append(f"model {module} {module}")
+        # Add built-in model declarations (vsource, isource, controlled sources)
+        for builtin in sorted(self._collect_builtin_models()):
+            model_lines.append(f"model {builtin} {builtin}")
         if model_lines:
             for line in model_lines:
                 lines.append(line)
