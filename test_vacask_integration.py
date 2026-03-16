@@ -5,8 +5,9 @@ from InSpice.Spice.Netlist import Circuit
 from InSpice.Spice.Simulator import Simulator
 from InSpice.Unit import *
 
-VACASK_CMD = '/Users/pepijndevos/code/VACASK/build/simulator/vacask'
-OSDI_PATH = '/Users/pepijndevos/code/VACASK/build/lib/vacask/mod'
+import os
+VACASK_CMD = os.environ.get('VACASK_CMD', '/tmp/vacask-arm/simulator/vacask')
+OSDI_PATH = os.environ.get('VACASK_OSDI_PATH', '/tmp/vacask-arm/lib/vacask/mod')
 
 def make_simulator():
     return Simulator.factory(
