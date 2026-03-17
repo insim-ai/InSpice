@@ -143,44 +143,6 @@ _module_logger = logging.getLogger(__name__)
 
 ####################################################################################################
 
-def _collect_spectre_instance_params(element):
-    """Collect instance parameters for semiconductor elements in Spectre format."""
-    from .Spectre import format_spectre_value
-    params = {}
-    prefix = element.PREFIX
-
-    try:
-        area = element.area
-        if area is not None and str(area) != '':
-            params['area'] = format_spectre_value(area)
-    except AttributeError:
-        pass
-
-    if prefix == 'M':
-        try:
-            length = element.length
-            if length is not None and str(length) != '':
-                params['l'] = format_spectre_value(length)
-        except AttributeError:
-            pass
-        try:
-            width = element.width
-            if width is not None and str(width) != '':
-                params['w'] = format_spectre_value(width)
-        except AttributeError:
-            pass
-
-    try:
-        m = element.multiplier
-        if m is not None and int(m) != 1:
-            params['$mfactor'] = format_spectre_value(m)
-    except (AttributeError, TypeError, ValueError):
-        pass
-
-    return params
-
-####################################################################################################
-
 class SubCircuitElement(NPinElement):
 
     """This class implements a sub-circuit.
@@ -324,33 +286,15 @@ class Resistor(DipoleElement):
 
     ALIAS = 'R'
     PREFIX = 'R'
+    SPECTRE_DEFAULT_PREFIX = 'R'
 
-    resistance = FloatPositionalParameter(position=0, key_parameter=False, unit=U_Ω)
+    resistance = FloatPositionalParameter(position=0, key_parameter=False, unit=U_Ω, spectre_name='r')
     ac = FloatKeyParameter('ac', unit=U_Ω)
     multiplier = IntKeyParameter('m')
     scale = FloatKeyParameter('scale')
     temperature = FloatKeyParameter('temp', unit=U_Degree)
     device_temperature = FloatKeyParameter('dtemp', unit=U_Degree)
     noisy = BoolKeyParameter('noisy')
-
-    def to_spectre(self, context=None):
-        from .Spectre import format_spectre_value, spectre_identifier, DEFAULT_MODELS
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        try:
-            model = self.model
-            if model is not None and str(model) != '':
-                model_name = spectre_identifier(str(model))
-            else:
-                model_name = 'sp_resistor'
-                if context is not None:
-                    context.register_default_model('R')
-        except AttributeError:
-            model_name = 'sp_resistor'
-            if context is not None:
-                context.register_default_model('R')
-        params = f"r={format_spectre_value(self.resistance)}"
-        return f"{name} ({nodes}) {model_name} {params}"
 
 ####################################################################################################
 
@@ -515,39 +459,15 @@ class Capacitor(DipoleElement):
 
     ALIAS = 'C'
     PREFIX = 'C'
+    SPECTRE_DEFAULT_PREFIX = 'C'
 
-    capacitance = FloatPositionalParameter(position=0, key_parameter=False, unit=U_F)
+    capacitance = FloatPositionalParameter(position=0, key_parameter=False, unit=U_F, spectre_name='c')
     model = ModelPositionalParameter(position=1, key_parameter=True)
     multiplier = IntKeyParameter('m')
     scale = FloatKeyParameter('scale')
     temperature = FloatKeyParameter('temp', unit=U_Degree)
     device_temperature = FloatKeyParameter('dtemp', unit=U_Degree)
-    initial_condition = FloatKeyParameter('ic')
-
-    def to_spectre(self, context=None):
-        from .Spectre import format_spectre_value, spectre_identifier
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        try:
-            model = self.model
-            if model is not None and str(model) != '':
-                model_name = spectre_identifier(str(model))
-            else:
-                model_name = 'sp_capacitor'
-                if context is not None:
-                    context.register_default_model('C')
-        except AttributeError:
-            model_name = 'sp_capacitor'
-            if context is not None:
-                context.register_default_model('C')
-        params = f"c={format_spectre_value(self.capacitance)}"
-        try:
-            ic = self.initial_condition
-            if ic is not None and str(ic) != '':
-                params += f" ic={format_spectre_value(ic)}"
-        except AttributeError:
-            pass
-        return f"{name} ({nodes}) {model_name} {params}"
+    initial_condition = FloatKeyParameter('ic', spectre_name='ic')
 
 ####################################################################################################
 
@@ -708,40 +628,16 @@ class Inductor(DipoleElement):
 
     ALIAS = 'L'
     PREFIX = 'L'
+    SPECTRE_DEFAULT_PREFIX = 'L'
 
-    inductance = FloatPositionalParameter(position=0, key_parameter=False, unit=U_H)
+    inductance = FloatPositionalParameter(position=0, key_parameter=False, unit=U_H, spectre_name='l')
     model = ModelPositionalParameter(position=1, key_parameter=True)
     nt = FloatKeyParameter('nt')
     multiplier = IntKeyParameter('m')
     scale = FloatKeyParameter('scale')
     temperature = FloatKeyParameter('temp', unit=U_Degree)
     device_temperature = FloatKeyParameter('dtemp', unit=U_Degree)
-    initial_condition = FloatKeyParameter('ic')
-
-    def to_spectre(self, context=None):
-        from .Spectre import format_spectre_value, spectre_identifier
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        try:
-            model = self.model
-            if model is not None and str(model) != '':
-                model_name = spectre_identifier(str(model))
-            else:
-                model_name = 'sp_inductor'
-                if context is not None:
-                    context.register_default_model('L')
-        except AttributeError:
-            model_name = 'sp_inductor'
-            if context is not None:
-                context.register_default_model('L')
-        params = f"l={format_spectre_value(self.inductance)}"
-        try:
-            ic = self.initial_condition
-            if ic is not None and str(ic) != '':
-                params += f" ic={format_spectre_value(ic)}"
-        except AttributeError:
-            pass
-        return f"{name} ({nodes}) {model_name} {params}"
+    initial_condition = FloatKeyParameter('ic', spectre_name='ic')
 
 ####################################################################################################
 
@@ -929,36 +825,12 @@ class VoltageSource(DipoleElement):
 
     ALIAS = 'V'
     PREFIX = 'V'
+    SPECTRE_MODULE = 'vsource'
+    SPECTRE_BUILTIN = True
 
-    dc_value = FloatKeywordPositionalParameter("DC", position=0, unit=U_V)
-    ac_value = FloatKeywordPositionalParameter("AC", position=1, unit=U_V)
+    dc_value = FloatKeywordPositionalParameter("DC", position=0, unit=U_V, spectre_name='dc')
+    ac_value = FloatKeywordPositionalParameter("AC", position=1, unit=U_V, spectre_name='mag')
     tran_value = ExpressionPositionalParameter(position=2)
-
-    def to_spectre(self, context=None):
-        from .Spectre import format_spectre_value
-        if context is not None:
-            context.register_builtin('vsource')
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        params = self._spectre_source_params()
-        return f"{name} ({nodes}) vsource {params}"
-
-    def _spectre_source_params(self):
-        from .Spectre import format_spectre_value
-        parts = []
-        try:
-            dc = self.dc_value
-            if dc is not None:
-                parts.append(f"dc={format_spectre_value(dc)}")
-        except AttributeError:
-            pass
-        try:
-            ac = self.ac_value
-            if ac is not None:
-                parts.append(f"mag={format_spectre_value(ac)}")
-        except AttributeError:
-            pass
-        return ' '.join(parts)
 
 ####################################################################################################
 
@@ -983,36 +855,12 @@ class CurrentSource(DipoleElement):
 
     ALIAS = 'I'
     PREFIX = 'I'
+    SPECTRE_MODULE = 'isource'
+    SPECTRE_BUILTIN = True
 
-    dc_value = FloatKeywordPositionalParameter("DC", position=0, unit=U_A)
-    ac_value = FloatKeywordPositionalParameter("AC", position=1, unit=U_A)
+    dc_value = FloatKeywordPositionalParameter("DC", position=0, unit=U_A, spectre_name='dc')
+    ac_value = FloatKeywordPositionalParameter("AC", position=1, unit=U_A, spectre_name='mag')
     tran_value = ExpressionPositionalParameter(position=2)
-
-    def to_spectre(self, context=None):
-        from .Spectre import format_spectre_value
-        if context is not None:
-            context.register_builtin('isource')
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        params = self._spectre_source_params()
-        return f"{name} ({nodes}) isource {params}"
-
-    def _spectre_source_params(self):
-        from .Spectre import format_spectre_value
-        parts = []
-        try:
-            dc = self.dc_value
-            if dc is not None:
-                parts.append(f"dc={format_spectre_value(dc)}")
-        except AttributeError:
-            pass
-        try:
-            ac = self.ac_value
-            if ac is not None:
-                parts.append(f"mag={format_spectre_value(ac)}")
-        except AttributeError:
-            pass
-        return ' '.join(parts)
 
 ####################################################################################################
 
@@ -1039,21 +887,11 @@ class VoltageControlledCurrentSource(TwoPortElement):
 
     ALIAS = 'VCCS'
     PREFIX = 'G'
+    SPECTRE_MODULE = 'vccs'
+    SPECTRE_BUILTIN = True
 
-    transconductance = ExpressionPositionalParameter(position=0, key_parameter=False)
+    transconductance = ExpressionPositionalParameter(position=0, key_parameter=False, spectre_name='gain')
     multiplier = IntKeyParameter('m')
-
-    def to_spectre(self, context=None):
-        from .Spectre import format_spectre_value
-        if context is not None:
-            context.register_builtin('vccs')
-        name = self.name.lower()
-        out_p = self.output_plus.node
-        out_m = self.output_minus.node
-        in_p = self.input_plus.node
-        in_m = self.input_minus.node
-        gm = format_spectre_value(self.transconductance)
-        return f"{name} ({out_p} {out_m} {in_p} {in_m}) vccs gain={gm}"
 
 ####################################################################################################
 
@@ -1077,20 +915,10 @@ class VoltageControlledVoltageSource(TwoPortElement):
 
     ALIAS = 'VCVS'
     PREFIX = 'E'
+    SPECTRE_MODULE = 'vcvs'
+    SPECTRE_BUILTIN = True
 
-    voltage_gain = ExpressionPositionalParameter(position=0, key_parameter=False)
-
-    def to_spectre(self, context=None):
-        from .Spectre import format_spectre_value
-        if context is not None:
-            context.register_builtin('vcvs')
-        name = self.name.lower()
-        out_p = self.output_plus.node
-        out_m = self.output_minus.node
-        in_p = self.input_plus.node
-        in_m = self.input_minus.node
-        gain = format_spectre_value(self.voltage_gain)
-        return f"{name} ({out_p} {out_m} {in_p} {in_m}) vcvs gain={gain}"
+    voltage_gain = ExpressionPositionalParameter(position=0, key_parameter=False, spectre_name='gain')
 
 ####################################################################################################
 
@@ -1120,20 +948,12 @@ class CurrentControlledCurrentSource(DipoleElement):
     ALIAS = 'F'
     LONG_ALIAS = 'CCCS'
     PREFIX = 'F'
+    SPECTRE_MODULE = 'cccs'
+    SPECTRE_BUILTIN = True
 
-    source = ElementNamePositionalParameter(position=0, key_parameter=False)
-    current_gain = ExpressionPositionalParameter(position=1, key_parameter=False)
+    source = ElementNamePositionalParameter(position=0, key_parameter=False, spectre_name='ctlinst', spectre_quote=True)
+    current_gain = ExpressionPositionalParameter(position=1, key_parameter=False, spectre_name='gain')
     multiplier = IntKeyParameter('m')
-
-    def to_spectre(self, context=None):
-        from .Spectre import format_spectre_value
-        if context is not None:
-            context.register_builtin('cccs')
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        source = str(self.source).lower()
-        gain = format_spectre_value(self.current_gain)
-        return f'{name} ({nodes}) cccs ctlinst="{source}" gain={gain}'
 
 ####################################################################################################
 
@@ -1160,19 +980,11 @@ class CurrentControlledVoltageSource(DipoleElement):
     ALIAS = 'H'
     LONG_ALIAS = 'CCVS'
     PREFIX = 'H'
+    SPECTRE_MODULE = 'ccvs'
+    SPECTRE_BUILTIN = True
 
-    source = ElementNamePositionalParameter(position=0, key_parameter=False)
-    transresistance = ExpressionPositionalParameter(position=1, key_parameter=False)
-
-    def to_spectre(self, context=None):
-        from .Spectre import format_spectre_value
-        if context is not None:
-            context.register_builtin('ccvs')
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        source = str(self.source).lower()
-        rm = format_spectre_value(self.transresistance)
-        return f'{name} ({nodes}) ccvs ctlinst="{source}" gain={rm}'
+    source = ElementNamePositionalParameter(position=0, key_parameter=False, spectre_name='ctlinst', spectre_quote=True)
+    transresistance = ExpressionPositionalParameter(position=1, key_parameter=False, spectre_name='gain')
 
 ####################################################################################################
 #
@@ -1379,25 +1191,13 @@ class Diode(FixedPinElement):
     PINS = (('cathode', 'plus'), ('anode', 'minus'))
 
     model = ModelPositionalParameter(position=0, key_parameter=True)
-    area = FloatKeyParameter('area')
-    multiplier = IntKeyParameter('m')
+    area = FloatKeyParameter('area', spectre_name='area')
+    multiplier = IntKeyParameter('m', spectre_name='$mfactor', spectre_default=1)
     pj = FloatKeyParameter('pj')
     off = FlagParameter('off')
     ic = FloatPairKeyParameter('ic')
     temperature = FloatKeyParameter('temp', unit=U_Degree)
     device_temperature = FloatKeyParameter('dtemp', unit=U_Degree)
-
-    def to_spectre(self, context=None):
-        from .Spectre import format_spectre_value, spectre_identifier
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        model_name = spectre_identifier(str(self.model))
-        params = _collect_spectre_instance_params(self)
-        param_str = ' '.join(f'{k}={v}' for k, v in params.items())
-        if param_str:
-            return f"{name} ({nodes}) {model_name} {param_str}"
-        else:
-            return f"{name} ({nodes}) {model_name}"
 
 ####################################################################################################
 #
@@ -1468,26 +1268,14 @@ class BipolarJunctionTransistor(FixedPinElement):
     PINS = ('collector', 'base', 'emitter', OptionalPin('substrate'))
 
     model = ModelPositionalParameter(position=0, key_parameter=True)
-    area = FloatKeyParameter('area')
+    area = FloatKeyParameter('area', spectre_name='area')
     areac = FloatKeyParameter('areac')
     areab = FloatKeyParameter('areab')
-    multiplier = IntKeyParameter('m')
+    multiplier = IntKeyParameter('m', spectre_name='$mfactor', spectre_default=1)
     off = FlagParameter('off')
     ic = FloatPairKeyParameter('ic')
     temperature = FloatKeyParameter('temp', unit=U_Degree)
     device_temperature = FloatKeyParameter('dtemp', unit=U_Degree)
-
-    def to_spectre(self, context=None):
-        from .Spectre import spectre_identifier
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        model_name = spectre_identifier(str(self.model))
-        params = _collect_spectre_instance_params(self)
-        param_str = ' '.join(f'{k}={v}' for k, v in params.items())
-        if param_str:
-            return f"{name} ({nodes}) {model_name} {param_str}"
-        else:
-            return f"{name} ({nodes}) {model_name}"
 
 ####################################################################################################
 #
@@ -1542,23 +1330,11 @@ class JunctionFieldEffectTransistor(JfetElement):
     PREFIX = 'J'
 
     model = ModelPositionalParameter(position=0, key_parameter=True)
-    area = FloatKeyParameter('area')
-    multiplier = IntKeyParameter('m')
+    area = FloatKeyParameter('area', spectre_name='area')
+    multiplier = IntKeyParameter('m', spectre_name='$mfactor', spectre_default=1)
     off = FlagParameter('off')
     ic = FloatPairKeyParameter('ic')
     temperature = FloatKeyParameter('temp', unit=U_Degree)
-
-    def to_spectre(self, context=None):
-        from .Spectre import spectre_identifier
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        model_name = spectre_identifier(str(self.model))
-        params = _collect_spectre_instance_params(self)
-        param_str = ' '.join(f'{k}={v}' for k, v in params.items())
-        if param_str:
-            return f"{name} ({nodes}) {model_name} {param_str}"
-        else:
-            return f"{name} ({nodes}) {model_name}"
 
 ####################################################################################################
 #
@@ -1605,22 +1381,10 @@ class Mesfet(JfetElement):
     PREFIX = 'Z'
 
     model = ModelPositionalParameter(position=0, key_parameter=True)
-    area = FloatKeyParameter('area')
-    multiplier = IntKeyParameter('m')
+    area = FloatKeyParameter('area', spectre_name='area')
+    multiplier = IntKeyParameter('m', spectre_name='$mfactor', spectre_default=1)
     off = FlagParameter('off')
     ic = FloatPairKeyParameter('ic')
-
-    def to_spectre(self, context=None):
-        from .Spectre import spectre_identifier
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        model_name = spectre_identifier(str(self.model))
-        params = _collect_spectre_instance_params(self)
-        param_str = ' '.join(f'{k}={v}' for k, v in params.items())
-        if param_str:
-            return f"{name} ({nodes}) {model_name} {param_str}"
-        else:
-            return f"{name} ({nodes}) {model_name}"
 
 ####################################################################################################
 #
@@ -1722,9 +1486,9 @@ class Mosfet(FixedPinElement):
     PINS = ('drain', 'gate', 'source', ('bulk', 'substrate'))
 
     model = ModelPositionalParameter(position=0, key_parameter=True)
-    multiplier = IntKeyParameter('m')
-    length = FloatKeyParameter('l', unit=U_m)
-    width = FloatKeyParameter('w', unit=U_m)
+    multiplier = IntKeyParameter('m', spectre_name='$mfactor', spectre_default=1)
+    length = FloatKeyParameter('l', unit=U_m, spectre_name='l')
+    width = FloatKeyParameter('w', unit=U_m, spectre_name='w')
     drain_area = FloatKeyParameter('ad')
     source_area = FloatKeyParameter('as')
     drain_perimeter = FloatKeyParameter('pd')
@@ -1737,18 +1501,6 @@ class Mosfet(FixedPinElement):
 
     # only for Xyce
     nfin = IntKeyParameter('nfin')
-
-    def to_spectre(self, context=None):
-        from .Spectre import spectre_identifier
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        model_name = spectre_identifier(str(self.model))
-        params = _collect_spectre_instance_params(self)
-        param_str = ' '.join(f'{k}={v}' for k, v in params.items())
-        if param_str:
-            return f"{name} ({nodes}) {model_name} {param_str}"
-        else:
-            return f"{name} ({nodes}) {model_name}"
 
 ####################################################################################################
 #

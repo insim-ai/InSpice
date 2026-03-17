@@ -657,14 +657,7 @@ class SinusoidalVoltageSource(VoltageSource, VoltageSourceMixinAbc, SinusoidalMi
     ##############################################
 
     format_spice_parameters = SinusoidalMixin.format_spice_parameters
-
-    def to_spectre(self, context=None):
-        if context is not None:
-            context.register_builtin('vsource')
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        params = SinusoidalMixin.format_spectre_parameters(self)
-        return f"{name} ({nodes}) vsource {params}"
+    format_spectre_parameters = SinusoidalMixin.format_spectre_parameters
 
 ####################################################################################################
 
@@ -685,14 +678,7 @@ class SinusoidalCurrentSource(CurrentSource, CurrentSourceMixinAbc, SinusoidalMi
     ##############################################
 
     format_spice_parameters = SinusoidalMixin.format_spice_parameters
-
-    def to_spectre(self, context=None):
-        if context is not None:
-            context.register_builtin('isource')
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        params = SinusoidalMixin.format_spectre_parameters(self)
-        return f"{name} ({nodes}) isource {params}"
+    format_spectre_parameters = SinusoidalMixin.format_spectre_parameters
 
 ####################################################################################################
 
@@ -724,14 +710,7 @@ class PulseVoltageSource(VoltageSource, VoltageSourceMixinAbc, PulseMixin):
     ##############################################
 
     format_spice_parameters = PulseMixin.format_spice_parameters
-
-    def to_spectre(self, context=None):
-        if context is not None:
-            context.register_builtin('vsource')
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        params = PulseMixin.format_spectre_parameters(self)
-        return f"{name} ({nodes}) vsource {params}"
+    format_spectre_parameters = PulseMixin.format_spectre_parameters
 
 ####################################################################################################
 
@@ -752,14 +731,7 @@ class PulseCurrentSource(CurrentSource, CurrentSourceMixinAbc, PulseMixin):
     ##############################################
 
     format_spice_parameters = PulseMixin.format_spice_parameters
-
-    def to_spectre(self, context=None):
-        if context is not None:
-            context.register_builtin('isource')
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        params = PulseMixin.format_spectre_parameters(self)
-        return f"{name} ({nodes}) isource {params}"
+    format_spectre_parameters = PulseMixin.format_spectre_parameters
 
 ####################################################################################################
 
@@ -780,14 +752,7 @@ class ExponentialVoltageSource(VoltageSource, VoltageSourceMixinAbc, Exponential
     ##############################################
 
     format_spice_parameters = ExponentialMixin.format_spice_parameters
-
-    def to_spectre(self, context=None):
-        if context is not None:
-            context.register_builtin('vsource')
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        params = ExponentialMixin.format_spectre_parameters(self)
-        return f"{name} ({nodes}) vsource {params}"
+    format_spectre_parameters = ExponentialMixin.format_spectre_parameters
 
 ####################################################################################################
 
@@ -808,14 +773,7 @@ class ExponentialCurrentSource(CurrentSource, CurrentSourceMixinAbc, Exponential
     ##############################################
 
     format_spice_parameters = ExponentialMixin.format_spice_parameters
-
-    def to_spectre(self, context=None):
-        if context is not None:
-            context.register_builtin('isource')
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        params = ExponentialMixin.format_spectre_parameters(self)
-        return f"{name} ({nodes}) isource {params}"
+    format_spectre_parameters = ExponentialMixin.format_spectre_parameters
 
 ####################################################################################################
 
@@ -836,14 +794,7 @@ class PieceWiseLinearVoltageSource(VoltageSource, VoltageSourceMixinAbc, PieceWi
     ##############################################
 
     format_spice_parameters = PieceWiseLinearMixin.format_spice_parameters
-
-    def to_spectre(self, context=None):
-        if context is not None:
-            context.register_builtin('vsource')
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        params = PieceWiseLinearMixin.format_spectre_parameters(self)
-        return f"{name} ({nodes}) vsource {params}"
+    format_spectre_parameters = PieceWiseLinearMixin.format_spectre_parameters
 
 ####################################################################################################
 
@@ -864,14 +815,7 @@ class PieceWiseLinearCurrentSource(CurrentSource, CurrentSourceMixinAbc, PieceWi
     ##############################################
 
     format_spice_parameters = PieceWiseLinearMixin.format_spice_parameters
-
-    def to_spectre(self, context=None):
-        if context is not None:
-            context.register_builtin('isource')
-        name = self.name.lower()
-        nodes = ' '.join(str(n) for n in self.node_names)
-        params = PieceWiseLinearMixin.format_spectre_parameters(self)
-        return f"{name} ({nodes}) isource {params}"
+    format_spectre_parameters = PieceWiseLinearMixin.format_spectre_parameters
 
 ####################################################################################################
 
