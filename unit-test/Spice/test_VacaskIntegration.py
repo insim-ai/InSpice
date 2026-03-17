@@ -1,20 +1,21 @@
 """Integration test for VACASK simulator - run actual simulations."""
 import sys
 import numpy as np
+import pytest
 from InSpice.Spice.Netlist import Circuit
 from InSpice.Spice.Simulator import Simulator
 from InSpice.Unit import *
 
-import os
-VACASK_CMD = os.environ.get('VACASK_CMD', '/tmp/vacask-arm/simulator/vacask')
-OSDI_PATH = os.environ.get('VACASK_OSDI_PATH', '/tmp/vacask-arm/lib/vacask/mod')
+try:
+    import vacask_bin
+    HAS_VACASK = True
+except ImportError:
+    HAS_VACASK = False
+
+pytestmark = pytest.mark.skipif(not HAS_VACASK, reason="vacask-bin not installed")
 
 def make_simulator():
-    return Simulator.factory(
-        simulator='vacask',
-        vacask_command=VACASK_CMD,
-        osdi_path=OSDI_PATH,
-    )
+    return Simulator.factory(simulator='vacask')
 
 def test_transient_rc():
     print("=== Transient RC Circuit ===")

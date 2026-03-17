@@ -38,10 +38,34 @@ jobs:
           name: release-dists
           path: dist/
 
+  vacask-bin-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build vacask-bin wheels
+        run: |
+          VACASK_TAG=$(cat vacask-bin/VACASK_VERSION)
+          python vacask-bin/build_wheels.py \
+            --release-tag "$VACASK_TAG" \
+            --output-dir dist/
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: vacask-bin-dists
+          path: dist/
+
   pypi-publish:
     runs-on: ubuntu-latest
     needs:
       - release-build
+      - vacask-bin-build
     permissions:
       # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
@@ -64,8 +88,15 @@ jobs:
           name: release-dists
           path: dist/
 
+      - name: Retrieve vacask-bin distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: vacask-bin-dists
+          path: dist/
+
       - name: Publish release distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
           packages-dir: dist/
+          skip-existing: true

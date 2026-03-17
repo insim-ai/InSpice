@@ -46,8 +46,20 @@ class VacaskServer:
     ##############################################
 
     def __init__(self, **kwargs):
-        self._vacask_command = kwargs.get('vacask_command') or self.VACASK_COMMAND
+        self._vacask_command = kwargs.get('vacask_command') or self._discover_vacask_command()
         self._osdi_path = kwargs.get('osdi_path') or self._discover_osdi_path()
+
+    ##############################################
+
+    @staticmethod
+    def _discover_vacask_command():
+        try:
+            import vacask_bin
+            if os.path.isfile(vacask_bin.VACASK_CMD):
+                return vacask_bin.VACASK_CMD
+        except ImportError:
+            pass
+        return VacaskServer.VACASK_COMMAND
 
     ##############################################
 
@@ -56,10 +68,17 @@ class VacaskServer:
         if env_path:
             return env_path
 
-        vacask_bin = shutil.which(self._vacask_command)
-        if vacask_bin:
-            vacask_bin = os.path.realpath(vacask_bin)
-            bin_dir = os.path.dirname(vacask_bin)
+        try:
+            import vacask_bin
+            if os.path.isdir(vacask_bin.MOD_DIR):
+                return vacask_bin.MOD_DIR
+        except ImportError:
+            pass
+
+        vacask_bin_path = shutil.which(self._vacask_command)
+        if vacask_bin_path:
+            vacask_bin_path = os.path.realpath(vacask_bin_path)
+            bin_dir = os.path.dirname(vacask_bin_path)
             osdi_path = os.path.join(bin_dir, '..', 'lib', 'vacask', 'mod')
             osdi_path = os.path.normpath(osdi_path)
             if os.path.isdir(osdi_path):
