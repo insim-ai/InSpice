@@ -74,8 +74,15 @@ class AnalysisParameters:
 
     ##############################################
 
-    def __str__(self):
+    def to_spice(self):
         return '.{0.analysis_name} {1}'.format(self, join_list(self.to_list()))
+
+    def __str__(self):
+        return self.to_spice()
+
+    def to_spectre(self, simulation=None):
+        """Return Spectre analysis lines. Override in subclasses."""
+        return []
 
 ####################################################################################################
 
@@ -84,6 +91,9 @@ class OperatingPointAnalysisParameters(AnalysisParameters):
     """This class defines analysis parameters for operating point analysis."""
 
     _ANALYSIS_NAME = 'op'
+
+    def to_spectre(self, simulation=None):
+        return ['analysis op1 op']
 
 ####################################################################################################
 
@@ -195,6 +205,33 @@ class DCAnalysisParameters(AnalysisParameters):
     def to_list(self):
         return self._parameters
 
+    ##############################################
+
+    def to_spectre(self, simulation=None):
+        from .Spectre import format_spectre_value
+        lines = []
+        params = self._parameters
+        for i in range(0, len(params), 4):
+            src = str(params[i]).lower()
+            start = format_spectre_value(params[i + 1])
+            stop = format_spectre_value(params[i + 2])
+            step = format_spectre_value(params[i + 3])
+            lines.append(
+                f'sweep {src} instance="{src}" parameter="dc" '
+                f'from={start} to={stop} step={step}'
+            )
+        op_line = 'analysis op1 op'
+        if simulation is not None and simulation._node_set:
+            ns_parts = []
+            for key, value in simulation._node_set.items():
+                node = key
+                if node.startswith('V(') and node.endswith(')'):
+                    node = node[2:-1]
+                ns_parts.append(f'"{node}"; {format_spectre_value(value)}')
+            op_line = f'analysis op1 op nodeset=[{"; ".join(ns_parts)}]'
+        lines.append(op_line)
+        return lines
+
 ####################################################################################################
 
 class ACAnalysisParameters(AnalysisParameters):
@@ -244,6 +281,17 @@ class ACAnalysisParameters(AnalysisParameters):
             self._start_frequency,
             self._stop_frequency
         )
+
+    ##############################################
+
+    def to_spectre(self, simulation=None):
+        from .Spectre import format_spectre_value
+        parts = ['analysis ac1 ac']
+        parts.append(f"from={format_spectre_value(self._start_frequency)}")
+        parts.append(f"to={format_spectre_value(self._stop_frequency)}")
+        parts.append(f'mode="{self._variation}"')
+        parts.append(f"points={self._number_of_points}")
+        return [' '.join(parts)]
 
 ####################################################################################################
 
@@ -295,6 +343,27 @@ class TransientAnalysisParameters(AnalysisParameters):
             self._max_time,
             'uic' if self._use_initial_condition else None,
         )
+
+    ##############################################
+
+    def to_spectre(self, simulation=None):
+        from .Spectre import format_spectre_value
+        parts = ['analysis tran1 tran']
+        parts.append(f"step={format_spectre_value(self._step_time)}")
+        parts.append(f"stop={format_spectre_value(self._end_time)}")
+        if self._max_time is not None:
+            parts.append(f"maxstep={format_spectre_value(self._max_time)}")
+        if self._use_initial_condition:
+            parts.append('icmode="uic"')
+        if simulation is not None and simulation._initial_condition:
+            ic_parts = []
+            for key, value in simulation._initial_condition.items():
+                node = key
+                if node.startswith('V(') and node.endswith(')'):
+                    node = node[2:-1]
+                ic_parts.append(f'"{node}"; {format_spectre_value(value)}')
+            parts.append(f"ic=[{'; '.join(ic_parts)}]")
+        return [' '.join(parts)]
 
 ####################################################################################################
 
@@ -441,6 +510,20 @@ class NoiseAnalysisParameters(AnalysisParameters):
             parameters.append(self._points_per_summary)
 
         return parameters
+
+    ##############################################
+
+    def to_spectre(self, simulation=None):
+        from .Spectre import format_spectre_value
+        parts = ['analysis noise1 noise']
+        output = str(self._output)
+        parts.append(f'out="{output}"')
+        parts.append(f'in="{str(self._src).lower()}"')
+        parts.append(f"from={format_spectre_value(self._start_frequency)}")
+        parts.append(f"to={format_spectre_value(self._stop_frequency)}")
+        parts.append(f'mode="{self._variation}"')
+        parts.append(f"points={self._points}")
+        return [' '.join(parts)]
 
 ####################################################################################################
 

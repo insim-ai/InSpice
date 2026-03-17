@@ -127,6 +127,25 @@ class DeviceModel:
 
     ##############################################
 
-    def __str__(self):
+    def to_spice(self):
         parameters = join_dict(self._parameters)
         return f".model {self._name} {self._model_type} ({parameters})"
+
+    def __str__(self):
+        return self.to_spice()
+
+    def to_spectre(self, context=None):
+        """Return the Spectre model declaration."""
+        from .Spectre import resolve_spectre_model, spectre_identifier, format_spectre_value
+        result = resolve_spectre_model(self)
+        if result is None:
+            return f"// Unsupported model type: {self._model_type} for {self._name}"
+        module_name, osdi_file, params = result
+        if context is not None:
+            context.register_osdi(osdi_file)
+        name = spectre_identifier(self._name)
+        param_str = ' '.join(f'{k}={v}' for k, v in params.items())
+        if param_str:
+            return f"model {name} {module_name} {param_str}"
+        else:
+            return f"model {name} {module_name}"

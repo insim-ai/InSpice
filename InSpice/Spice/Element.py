@@ -582,9 +582,16 @@ class Element(metaclass=ElementParameterMetaClass):
 
     ##############################################
 
-    def __str__(self):
+    def to_spice(self):
         """ Return the SPICE element definition. """
         return join_list((self.format_node_names(), self.format_spice_parameters(), self.raw_spice))
+
+    def __str__(self):
+        return self.to_spice()
+
+    def to_spectre(self, context=None):
+        """Return the Spectre element definition. Override in subclasses."""
+        return f"// Unsupported element: {self.name}"
 
 ####################################################################################################
 
