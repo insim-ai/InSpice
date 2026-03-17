@@ -57,6 +57,7 @@ class VacaskSimulation(Simulation):
         for key, value in self._options.items():
             k = key.lower()
             if k == 'savecurrents':
+                self._logger.warning('SAVECURRENTS is not supported by VACASK, ignored')
                 continue
             if value is not None:
                 parts.append(f"{k}={format_spectre_value(value)}")
@@ -127,7 +128,11 @@ class VacaskSimulation(Simulation):
         lines.append('  ' + self._translate_options())
 
         # Save directives
-        lines.append('  save default')
+        if self._saved_nodes:
+            saved = ' '.join(sorted(self._saved_nodes))
+            lines.append(f'  save {saved}')
+        else:
+            lines.append('  save default')
 
         # Analysis / sweep directives
         for analysis_parameters in self._analyses.values():
@@ -137,6 +142,35 @@ class VacaskSimulation(Simulation):
         lines.append('endc')
 
         return '\n'.join(lines) + '\n'
+
+    ##############################################
+
+    def to_spice(self):
+        raise NotImplementedError("VACASK uses Spectre format, not SPICE. Use to_spectre().")
+
+    ##############################################
+
+    # Analyses not supported by VACASK
+
+    def dc_sensitivity(self, *args, **kwargs):
+        raise NotImplementedError("DC sensitivity analysis is not supported by VACASK")
+
+    def ac_sensitivity(self, *args, **kwargs):
+        raise NotImplementedError("AC sensitivity analysis is not supported by VACASK")
+
+    def polezero(self, *args, **kwargs):
+        raise NotImplementedError("Pole-zero analysis is not supported by VACASK")
+
+    def transfer_function(self, *args, **kwargs):
+        raise NotImplementedError("Transfer function analysis is not supported by VACASK")
+
+    tf = transfer_function
+
+    def distortion(self, *args, **kwargs):
+        raise NotImplementedError("Distortion analysis is not supported by VACASK")
+
+    def measure(self, *args, **kwargs):
+        raise NotImplementedError("Measure statements are not supported by VACASK")
 
     ##############################################
 

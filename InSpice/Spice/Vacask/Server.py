@@ -107,7 +107,7 @@ class VacaskServer:
 
     ##############################################
 
-    def __call__(self, simulation_input):
+    def __call__(self, simulation_input, raw_filename=None):
         self._logger.debug('Start the VACASK subprocess')
 
         tmp_dir = tempfile.mkdtemp()
@@ -120,7 +120,6 @@ class VacaskServer:
             self._logger.info('Run {}'.format(' '.join(command)))
             process = subprocess.Popen(
                 command,
-                stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=tmp_dir,
@@ -135,17 +134,20 @@ class VacaskServer:
 
             self._parse_stdout(stdout, stderr)
 
-            # VACASK writes {analysis_name}.raw files to cwd
-            raw_files = sorted(glob.glob(os.path.join(tmp_dir, '*.raw')))
-            if not raw_files:
-                raise RuntimeError("VACASK did not produce any raw output files")
+            # Read the expected raw file, or fall back to glob
+            if raw_filename:
+                raw_path = os.path.join(tmp_dir, raw_filename)
+                if not os.path.exists(raw_path):
+                    raise RuntimeError(
+                        f"Expected raw file {raw_filename} not found. "
+                        f"Available: {os.listdir(tmp_dir)}")
+            else:
+                raw_files = sorted(glob.glob(os.path.join(tmp_dir, '*.raw')))
+                if not raw_files:
+                    raise RuntimeError("VACASK did not produce any raw output files")
+                raw_path = raw_files[0]
 
-            if len(raw_files) > 1:
-                self._logger.warning(
-                    'VACASK produced %d raw files, only reading first: %s',
-                    len(raw_files), raw_files[0])
-
-            with open(raw_files[0], 'rb') as f:
+            with open(raw_path, 'rb') as f:
                 output = f.read()
 
             raw_file = VacaskRawFile(output)

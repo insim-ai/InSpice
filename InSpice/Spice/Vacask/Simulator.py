@@ -68,7 +68,24 @@ class VacaskSimulator(Simulator):
 
     ##############################################
 
+    # Maps analysis parameter class names to the instance names used in to_spectre()
+    _ANALYSIS_RAW_FILES = {
+        'OperatingPointAnalysisParameters': 'op1',
+        'DCAnalysisParameters': 'op1',
+        'ACAnalysisParameters': 'ac1',
+        'TransientAnalysisParameters': 'tran1',
+        'NoiseAnalysisParameters': 'noise1',
+    }
+
     def run(self, simulation, *args, **kwargs):
-        raw_file = self._vacask_server(str(simulation))
+        # Determine the expected raw file name from the analysis type
+        raw_filename = None
+        for analysis in simulation._analyses.values():
+            class_name = type(analysis).__name__
+            if class_name in self._ANALYSIS_RAW_FILES:
+                raw_filename = self._ANALYSIS_RAW_FILES[class_name] + '.raw'
+                break
+
+        raw_file = self._vacask_server(str(simulation), raw_filename=raw_filename)
         raw_file.simulation = simulation
         return raw_file.to_analysis()

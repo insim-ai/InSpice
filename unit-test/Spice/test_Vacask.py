@@ -243,6 +243,75 @@ class TestVacaskNetlistGeneration(unittest.TestCase):
         self.assertIn('icmode="uic"', netlist)
         self.assertIn('ic=[', netlist)
 
+    ##############################################
+
+    def test_save_nodes(self):
+        """Save directives should appear in netlist instead of 'save default'."""
+        circuit = Circuit('Save Test')
+        circuit.V('in', 'inp', circuit.gnd, 5)
+        circuit.R(1, 'inp', 'out', kilo(1))
+
+        simulation = self._make_simulation(circuit)
+        simulation.save(['out', 'inp'])
+        simulation.operating_point(run=False)
+
+        netlist = str(simulation)
+        self.assertIn('save', netlist)
+        self.assertIn('inp', netlist)
+        self.assertIn('out', netlist)
+        self.assertNotIn('save default', netlist)
+
+    ##############################################
+
+    def test_save_default_when_no_save(self):
+        """Without explicit save(), netlist should have 'save default'."""
+        circuit = Circuit('Default Save Test')
+        circuit.V('in', 'inp', circuit.gnd, 5)
+        circuit.R(1, 'inp', circuit.gnd, kilo(1))
+
+        simulation = self._make_simulation(circuit)
+        simulation.operating_point(run=False)
+
+        netlist = str(simulation)
+        self.assertIn('save default', netlist)
+
+    ##############################################
+
+    def test_unsupported_analyses_raise(self):
+        """Analyses not supported by VACASK must raise NotImplementedError."""
+        circuit = Circuit('Unsupported Test')
+        circuit.V('in', 'inp', circuit.gnd, 5)
+        circuit.R(1, 'inp', circuit.gnd, kilo(1))
+
+        simulation = self._make_simulation(circuit)
+
+        with self.assertRaises(NotImplementedError):
+            simulation.dc_sensitivity('V(inp)', run=False)
+        with self.assertRaises(NotImplementedError):
+            simulation.ac_sensitivity('V(inp)', 'dec', 10, 1, 1e6, run=False)
+        with self.assertRaises(NotImplementedError):
+            simulation.polezero('inp', circuit.gnd, 'inp', circuit.gnd, 'vol', 'pz', run=False)
+        with self.assertRaises(NotImplementedError):
+            simulation.transfer_function('V(inp)', 'Vin', run=False)
+        with self.assertRaises(NotImplementedError):
+            simulation.distortion('dec', 10, 1, 1e6, run=False)
+        with self.assertRaises(NotImplementedError):
+            simulation.measure('TRAN', 'rise_time', 'TRIG', run=False)
+
+    ##############################################
+
+    def test_to_spice_raises(self):
+        """to_spice() must raise NotImplementedError for VACASK."""
+        circuit = Circuit('Spice Test')
+        circuit.V('in', 'inp', circuit.gnd, 5)
+        circuit.R(1, 'inp', circuit.gnd, kilo(1))
+
+        simulation = self._make_simulation(circuit)
+        simulation.operating_point(run=False)
+
+        with self.assertRaises(NotImplementedError):
+            simulation.to_spice()
+
 ####################################################################################################
 
 class TestVacaskRawFile(unittest.TestCase):

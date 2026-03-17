@@ -169,5 +169,18 @@ class VacaskRawFile(RawFileAbc):
     ##############################################
 
     def _to_dc_analysis(self):
-        first_var = next(iter(self.variables.values()))
-        return super()._to_dc_analysis(first_var)
+        # Identify sweep variable by name from DC analysis parameters
+        sweep_name = None
+        from ..AnalysisParameters import DCAnalysisParameters
+        for analysis in self._simulation._analyses.values():
+            if isinstance(analysis, DCAnalysisParameters):
+                sweep_name = str(analysis.parameters[0]).lower()
+                break
+
+        if sweep_name and sweep_name in self.variables:
+            sweep_var = self.variables[sweep_name]
+        else:
+            # Fallback: first variable
+            sweep_var = next(iter(self.variables.values()))
+
+        return super()._to_dc_analysis(sweep_var)
