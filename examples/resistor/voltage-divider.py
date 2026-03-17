@@ -27,11 +27,11 @@ simulation = simulator.simulation(circuit, temperature=25, nominal_temperature=2
 
 analysis = simulation.operating_point()
 for node in (analysis['in'], analysis.out): # .in is invalid !
-    print('Node {}: {} V'.format(str(node), float(node)))
+    print('Node {}: {} V'.format(str(node), float(node[0])))
 #o#
 
 # Fixme: Xyce sensitivity analysis
 analysis = simulation.dc_sensitivity('v(out)')
 for element in analysis.elements.values():
-    print(element, float(element))
+    print(element, float(element[0]))
 #o#

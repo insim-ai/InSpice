@@ -27,5 +27,5 @@ print(analysis.branches)
 # Print the actual current values
 print("\nExtracted current values:")
 for name, branch in analysis.branches.items():
-    current = float(branch)
+    current = float(branch[0])
     print(f"{name}: {current} A")

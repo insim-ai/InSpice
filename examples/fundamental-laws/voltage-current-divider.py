@@ -40,7 +40,7 @@ simulation = simulator.simulation(circuit, temperature=25, nominal_temperature=2
 analysis = simulation.operating_point()
 
 for node in analysis.nodes.values():
-    print('Node {}: {:5.2f} V'.format(str(node), float(node))) # Fixme: format value + unit
+    print('Node {}: {:5.2f} V'.format(str(node), float(node[0]))) # Fixme: format value + unit
 #o#
 
 ####################################################################################################
@@ -75,5 +75,5 @@ analysis = simulation.operating_point()
 
 # Fixme: current over resistor
 for node in analysis.branches.values():
-    print('Node {}: {:5.2f} A'.format(str(node), float(node))) # Fixme: format value + unit
+    print('Node {}: {:5.2f} A'.format(str(node), float(node[0]))) # Fixme: format value + unit
 #o#

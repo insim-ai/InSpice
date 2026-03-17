@@ -59,8 +59,8 @@ for voltage in (dc_offset - ac_amplitude, dc_offset, dc_offset + ac_amplitude):
     simulation = simulator.simulation(circuit, temperature=25, nominal_temperature=25)
     analysis = simulation.operating_point()
     # Fixme: handle unit
-    quiescent_voltage = float(analysis.out)
-    quiescent_current = - float(analysis.Vinput)
+    quiescent_voltage = float(analysis.out[0])
+    quiescent_current = - float(analysis.Vinput[0])
     quiescent_points.append(dict(voltage=voltage,
                                  quiescent_voltage=quiescent_voltage,
                                  quiescent_current=quiescent_current))
