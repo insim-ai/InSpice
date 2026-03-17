@@ -13,6 +13,7 @@
 """Unit tests for the VACASK simulator interface."""
 
 import unittest
+from unittest import mock
 
 from InSpice.Spice.Netlist import Circuit
 from InSpice.Spice.Simulator import Simulator
@@ -265,6 +266,152 @@ class TestVacaskRawFile(unittest.TestCase):
         t = VacaskVariable(0, 'time', u_s)
         self.assertFalse(t.is_voltage_node())
         self.assertFalse(t.is_branch_current())
+
+    ##############################################
+
+    def test_branch_current_after_fix_case(self):
+        """V2: fix_case renames 'v1:flow(br)' to 'i(V1)' — is_branch_current must still match."""
+        from InSpice.Spice.Vacask.RawFile import VacaskVariable
+        from InSpice.Unit import u_A
+
+        var = VacaskVariable(1, 'v1:flow(br)', u_A)
+        self.assertTrue(var.is_branch_current())
+
+        # Simulate what fix_case does: rename to i(V1)
+        var.name = 'i(V1)'
+        self.assertTrue(var.is_branch_current())
+        self.assertFalse(var.is_voltage_node())
+        self.assertEqual(var.simplified_name, 'V1')
+
+    ##############################################
+
+    def test_voltage_node_not_misclassified_after_fix_case(self):
+        """V2 corollary: a renamed voltage 'v(out)' must still be a voltage, not a branch."""
+        from InSpice.Spice.Vacask.RawFile import VacaskVariable
+        from InSpice.Unit import u_V
+
+        var = VacaskVariable(0, 'out', u_V)
+        var.name = 'v(out)'
+        self.assertTrue(var.is_voltage_node())
+        self.assertFalse(var.is_branch_current())
+
+    ##############################################
+
+    def test_unsupported_plot_raises(self):
+        """V1: noise analysis and unknown plot types raise NotImplementedError."""
+        from InSpice.Spice.Vacask.RawFile import VacaskRawFile
+        import struct
+
+        # Build a minimal raw file binary blob
+        def make_raw(plotname):
+            header = (
+                f'Title: test\n'
+                f'Date: now\n'
+                f'Plotname: {plotname}\n'
+                f'Flags: real\n'
+                f'No. Variables: 1\n'
+                f'No. Points: 1\n'
+                f'Variables:\n'
+                f'\t0\ttime\tnotype\n'
+                f'Binary:\n'
+            ).encode('utf-8')
+            data = struct.pack('d', 0.0)
+            return header + data
+
+        raw_file = VacaskRawFile(make_raw('Noise Analysis'))
+        with self.assertRaises(NotImplementedError):
+            raw_file._simulation = mock.MagicMock()
+            raw_file.to_analysis()
+
+        raw_file2 = VacaskRawFile(make_raw('Unknown Analysis'))
+        with self.assertRaises(NotImplementedError):
+            raw_file2._simulation = mock.MagicMock()
+            raw_file2.to_analysis()
+
+####################################################################################################
+
+class TestVacaskServerErrorHandling(unittest.TestCase):
+
+    def test_nonzero_exit_code_raises_runtime_error(self):
+        """V4: non-zero exit code must raise RuntimeError, not pass silently."""
+        from InSpice.Spice.Vacask.Server import VacaskServer
+        server = VacaskServer(vacask_command='false')  # 'false' always exits 1
+        with self.assertRaises(RuntimeError) as ctx:
+            server('dummy input')
+        self.assertIn('exited with code', str(ctx.exception))
+
+    def test_temp_dir_cleaned_on_error(self):
+        """V3: temp dir must be cleaned up even when simulation fails."""
+        import os
+        import glob
+        import tempfile
+        from InSpice.Spice.Vacask.Server import VacaskServer
+
+        server = VacaskServer(vacask_command='false')
+        # Count temp dirs before
+        before = set(glob.glob(os.path.join(tempfile.gettempdir(), 'tmp*')))
+        try:
+            server('dummy input')
+        except RuntimeError:
+            pass
+        after = set(glob.glob(os.path.join(tempfile.gettempdir(), 'tmp*')))
+        # No new temp dirs leaked
+        leaked = after - before
+        for d in leaked:
+            if os.path.isdir(d) and os.path.exists(os.path.join(d, 'input.sim')):
+                self.fail(f"Leaked temp dir: {d}")
+
+####################################################################################################
+
+class TestSpectreUnsupportedSources(unittest.TestCase):
+
+    def test_sffm_spectre_not_supported(self):
+        """S9: SFFM sources must raise NotImplementedError for Spectre output."""
+        from InSpice.Spice.HighLevelElement import SingleFrequencyFMMixin, VoltageSourceMixinAbc
+        class TestSFFM(VoltageSourceMixinAbc, SingleFrequencyFMMixin):
+            pass
+        src = TestSFFM(offset=0, amplitude=1, carrier_frequency=1e3,
+                       modulation_index=5, signal_frequency=10)
+        with self.assertRaises(NotImplementedError):
+            src.format_spectre_parameters()
+
+    def test_am_spectre_not_supported(self):
+        """S9: AM sources must raise NotImplementedError for Spectre output."""
+        from InSpice.Spice.HighLevelElement import AmplitudeModulatedMixin, VoltageSourceMixinAbc
+        class TestAM(VoltageSourceMixinAbc, AmplitudeModulatedMixin):
+            pass
+        src = TestAM(offset=0, amplitude=1, modulating_frequency=100,
+                     carrier_frequency=1e3, signal_delay=0)
+        with self.assertRaises(NotImplementedError):
+            src.format_spectre_parameters()
+
+    def test_random_spectre_not_supported(self):
+        """S9: Random sources must raise NotImplementedError for Spectre output."""
+        from InSpice.Spice.HighLevelElement import RandomMixin, VoltageSourceMixinAbc
+        class TestRandom(VoltageSourceMixinAbc, RandomMixin):
+            pass
+        src = TestRandom(random_type='uniform', duration=1e-3)
+        with self.assertRaises(NotImplementedError):
+            src.format_spectre_parameters()
+
+####################################################################################################
+
+class TestNoiseSpectreOutput(unittest.TestCase):
+
+    def test_noise_strips_v_wrapper(self):
+        """S3: Noise output must strip V() wrapper for Spectre."""
+        from InSpice.Spice.AnalysisParameters import NoiseAnalysisParameters
+        ap = NoiseAnalysisParameters('V(out, 0)', 'Vinput', 'dec', 10, 1, 1e6, None)
+        lines = ap.to_spectre()
+        self.assertIn('out="out, 0"', lines[0])
+        self.assertNotIn('V(', lines[0])
+
+    def test_noise_bare_node_unchanged(self):
+        """S3: Bare node name without V() must pass through unchanged."""
+        from InSpice.Spice.AnalysisParameters import NoiseAnalysisParameters
+        ap = NoiseAnalysisParameters('out', 'Vinput', 'dec', 10, 1, 1e6, None)
+        lines = ap.to_spectre()
+        self.assertIn('out="out"', lines[0])
 
 ####################################################################################################
 

@@ -95,7 +95,7 @@ FAMILY_MAP = {
     ('mos',   8,    '3.2.4'):  ('spice/bsim3v2.osdi',  'sp_bsim3v2',   {'version': '"3.2.4"'}),
     ('mos',   8,    '3.24'):   ('spice/bsim3v2.osdi',  'sp_bsim3v2',   {'version': '"3.24"'}),
     ('mos',   8,    '3.1'):    ('spice/bsim3v1.osdi',  'sp_bsim3v1',   {}),
-    ('mos',   8,    '3.0'):    ('spice/bsim3v3.osdi',  'sp_bsim3v0',   {}),
+    ('mos',   8,    '3.0'):    ('spice/bsim3v0.osdi',  'sp_bsim3v0',   {}),
 
     ('mos',   49,   None):     ('spice/bsim3v3.osdi',  'sp_bsim3v3',   {}),
     ('mos',   49,   '3.3'):    ('spice/bsim3v3.osdi',  'sp_bsim3v3',   {}),

@@ -295,6 +295,7 @@ class TestAnalysisSpectre(unittest.TestCase):
         self.assertEqual(len(lines), 1)
         self.assertIn('analysis noise1 noise', lines[0])
         self.assertIn('in="vinput"', lines[0])
+        self.assertIn('out="out, 0"', lines[0])
 
 ####################################################################################################
 

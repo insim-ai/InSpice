@@ -517,6 +517,9 @@ class NoiseAnalysisParameters(AnalysisParameters):
         from .Spectre import format_spectre_value
         parts = ['analysis noise1 noise']
         output = str(self._output)
+        # Strip SPICE V(...) wrapper — Spectre uses bare node name
+        if output.startswith('V(') and output.endswith(')'):
+            output = output[2:-1]
         parts.append(f'out="{output}"')
         parts.append(f'in="{str(self._src).lower()}"')
         parts.append(f"from={format_spectre_value(self._start_frequency)}")

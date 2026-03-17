@@ -111,32 +111,45 @@ class VacaskServer:
         self._logger.debug('Start the VACASK subprocess')
 
         tmp_dir = tempfile.mkdtemp()
-        input_filename = os.path.join(tmp_dir, 'input.sim')
-        with open(input_filename, 'w') as f:
-            f.write(str(simulation_input))
+        try:
+            input_filename = os.path.join(tmp_dir, 'input.sim')
+            with open(input_filename, 'w') as f:
+                f.write(str(simulation_input))
 
-        command = (self._vacask_command, input_filename)
-        self._logger.info('Run {}'.format(' '.join(command)))
-        process = subprocess.Popen(
-            command,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=tmp_dir,
-        )
-        stdout, stderr = process.communicate()
+            command = (self._vacask_command, input_filename)
+            self._logger.info('Run {}'.format(' '.join(command)))
+            process = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=tmp_dir,
+            )
+            stdout, stderr = process.communicate()
 
-        self._parse_stdout(stdout, stderr)
+            if process.returncode != 0:
+                output = stdout.decode('utf-8', errors='replace')
+                err_output = stderr.decode('utf-8', errors='replace')
+                raise RuntimeError(
+                    f"VACASK exited with code {process.returncode}:\n{output}{err_output}")
 
-        # VACASK writes {analysis_name}.raw files to cwd
-        raw_files = glob.glob(os.path.join(tmp_dir, '*.raw'))
-        if not raw_files:
-            raise NameError("VACASK did not produce any raw output files")
+            self._parse_stdout(stdout, stderr)
 
-        with open(raw_files[0], 'rb') as f:
-            output = f.read()
+            # VACASK writes {analysis_name}.raw files to cwd
+            raw_files = sorted(glob.glob(os.path.join(tmp_dir, '*.raw')))
+            if not raw_files:
+                raise RuntimeError("VACASK did not produce any raw output files")
 
-        raw_file = VacaskRawFile(output)
-        shutil.rmtree(tmp_dir)
+            if len(raw_files) > 1:
+                self._logger.warning(
+                    'VACASK produced %d raw files, only reading first: %s',
+                    len(raw_files), raw_files[0])
+
+            with open(raw_files[0], 'rb') as f:
+                output = f.read()
+
+            raw_file = VacaskRawFile(output)
+        finally:
+            shutil.rmtree(tmp_dir)
 
         return raw_file

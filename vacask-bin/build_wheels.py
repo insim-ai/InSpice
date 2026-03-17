@@ -9,10 +9,8 @@ import os
 import re
 import shutil
 import stat
-import struct
 import tarfile
 import tempfile
-import time
 import urllib.request
 import zipfile
 
@@ -66,7 +64,7 @@ def extract_archive(archive_path, ext, dest_dir):
     """Extract tar.gz or zip archive."""
     if ext == 'tar.gz':
         with tarfile.open(archive_path, 'r:gz') as tf:
-            tf.extractall(dest_dir)
+            tf.extractall(dest_dir, filter='data')
     elif ext == 'zip':
         with zipfile.ZipFile(archive_path, 'r') as zf:
             zf.extractall(dest_dir)
@@ -144,7 +142,8 @@ def make_wheel(pkg_dir, version, wheel_tag, output_dir):
             for fname in sorted(files):
                 full_path = os.path.join(root, fname)
                 arcname = os.path.join('vacask_bin', os.path.relpath(full_path, pkg_dir))
-                data = open(full_path, 'rb').read()
+                with open(full_path, 'rb') as fh:
+                    data = fh.read()
                 digest = sha256_digest(data)
 
                 info = zipfile.ZipInfo(arcname)
@@ -269,7 +268,7 @@ def main():
 
         # Build package layout
         pkg_dir = tempfile.mkdtemp(prefix=f'vacask-pkg-{platform}-')
-        print(f'  Building package layout')
+        print('  Building package layout')
         build_package_layout(extracted_root, pkg_dir, version, info['exe_suffix'])
 
         # Create wheel

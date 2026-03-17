@@ -518,6 +518,9 @@ class SingleFrequencyFMMixin(SourceMixinAbc):
                            self.modulation_index, self.signal_frequency)) +
                 ')')
 
+    def format_spectre_parameters(self):
+        raise NotImplementedError("SFFM sources are not supported in Spectre/VACASK output")
+
 ####################################################################################################
 
 class AmplitudeModulatedMixin(SourceMixinAbc):
@@ -570,6 +573,9 @@ class AmplitudeModulatedMixin(SourceMixinAbc):
                 join_list((self.offset, self.amplitude, self.carrier_frequency,
                            self.modulating_frequency, self.signal_delay)) +
                 ')')
+
+    def format_spectre_parameters(self):
+        raise NotImplementedError("AM sources are not supported in Spectre/VACASK output")
 
 ####################################################################################################
 
@@ -637,6 +643,9 @@ class RandomMixin(SourceMixinAbc):
                 join_list((random_type, self.duration, self.time_delay,
                            self.parameter1, self.parameter2)) +
                 ')')
+
+    def format_spectre_parameters(self):
+        raise NotImplementedError("Random sources are not supported in Spectre/VACASK output")
 
 ####################################################################################################
 

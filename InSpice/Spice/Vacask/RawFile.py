@@ -46,7 +46,7 @@ class VacaskVariable(VariableAbc):
     ##############################################
 
     def is_branch_current(self):
-        return ':flow(br)' in self.name
+        return ':flow(br)' in self.name or (self.name.startswith('i(') and self.name.endswith(')'))
 
     ##############################################
 
@@ -163,8 +163,6 @@ class VacaskRawFile(RawFileAbc):
             return self._to_ac_analysis()
         elif plot == 'Transient Analysis':
             return self._to_transient_analysis()
-        elif plot == 'Noise Analysis':
-            return self._to_noise_analysis()
         else:
             raise NotImplementedError("Unsupported plot name {}".format(plot))
 
