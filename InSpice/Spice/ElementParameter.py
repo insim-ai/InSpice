@@ -31,6 +31,8 @@ from .unit import str_spice
 
 ####################################################################################################
 
+_SENTINEL = object()
+
 class ParameterDescriptor:
 
     """This base class implements a descriptor for element parameters.
@@ -47,9 +49,12 @@ class ParameterDescriptor:
 
     ##############################################
 
-    def __init__(self, default=None):
+    def __init__(self, default=None, spectre_name=None, spectre_quote=False, spectre_default=_SENTINEL):
         self._default_value = default
         self._attribute_name = None
+        self._spectre_name = spectre_name
+        self._spectre_quote = spectre_quote
+        self._spectre_default = spectre_default
 
     ##############################################
 
@@ -64,6 +69,10 @@ class ParameterDescriptor:
     @attribute_name.setter
     def attribute_name(self, name):
         self._attribute_name = name
+
+    @property
+    def spectre_name(self):
+        return self._spectre_name
 
     ##############################################
 
@@ -102,6 +111,25 @@ class ParameterDescriptor:
 
     ##############################################
 
+    def to_spectre_str(self, instance):
+        """Convert the parameter's value to Spectre syntax."""
+        from .Spectre import format_spectre_value
+        val = self.__get__(instance)
+        if val is None:
+            return None
+        if self._spectre_default is not _SENTINEL:
+            try:
+                if float(val) == float(self._spectre_default):
+                    return None
+            except (TypeError, ValueError):
+                pass
+        formatted = format_spectre_value(val)
+        if self._spectre_quote:
+            return f'{self._spectre_name}="{formatted}"'
+        return f'{self._spectre_name}={formatted}'
+
+    ##############################################
+
     def __lt__(self, other):
         return self._attribute_name < other.attribute_name
 
@@ -123,8 +151,8 @@ class PositionalElementParameter(ParameterDescriptor):
 
     ##############################################
 
-    def __init__(self, position, default=None, key_parameter=False):
-        super().__init__(default)
+    def __init__(self, position, default=None, key_parameter=False, **kwargs):
+        super().__init__(default, **kwargs)
         self._position = position
         self._key_parameter = key_parameter
 
@@ -158,6 +186,15 @@ class ElementNamePositionalParameter(PositionalElementParameter):
 
     def validate(self, value):
         return str(value)
+
+    def to_spectre_str(self, instance):
+        val = self.__get__(instance)
+        if val is None:
+            return None
+        formatted = str(val).lower()
+        if self._spectre_quote:
+            return f'{self._spectre_name}="{formatted}"'
+        return f'{self._spectre_name}={formatted}'
 
 ####################################################################################################
 
@@ -233,7 +270,7 @@ class KeywordPositionalElementParameter(PositionalElementParameter):
     """
 
     def __init__(self, keyword, position, **kwargs):
-        super().__init__(position)
+        super().__init__(position, **kwargs)
         self._keyword = keyword
     
     def to_str(self, instance):
@@ -274,8 +311,8 @@ class FlagParameter(ParameterDescriptor):
 
     ##############################################
 
-    def __init__(self, spice_name, default=False):
-        super().__init__(default)
+    def __init__(self, spice_name, default=False, **kwargs):
+        super().__init__(default, **kwargs)
         self.spice_name = spice_name
 
     ##############################################
@@ -306,8 +343,8 @@ class KeyValueParameter(ParameterDescriptor):
 
     ##############################################
 
-    def __init__(self, spice_name, default=None, separator='='):
-        super().__init__(default)
+    def __init__(self, spice_name, default=None, separator='=', **kwargs):
+        super().__init__(default, **kwargs)
         self.spice_name = spice_name
         self.separator = separator
 

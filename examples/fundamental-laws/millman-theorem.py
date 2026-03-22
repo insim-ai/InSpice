@@ -52,7 +52,7 @@ simulation = simulator.simulation(circuit, temperature=25, nominal_temperature=2
 analysis = simulation.operating_point()
 
 node_A = analysis.A
-print('Node {}: {:5.2f} V'.format(str(node_A), float(node_A)))
+print('Node {}: {:5.2f} V'.format(str(node_A), float(node_A[0])))
 #o#
 
 branch_voltages = np.arange(1, number_of_branches +1)
@@ -72,7 +72,7 @@ simulation = simulator.simulation(circuit, temperature=25, nominal_temperature=2
 analysis = simulation.operating_point()
 
 node_A = analysis.A
-print('Node {}: {:5.2f} V'.format(str(node_A), float(node_A)))
+print('Node {}: {:5.2f} V'.format(str(node_A), float(node_A[0])))
 #o#
 
 branch_currents = np.arange(1, number_of_branches +1) * float(micro(100))

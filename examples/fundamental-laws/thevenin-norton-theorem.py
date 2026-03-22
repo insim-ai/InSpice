@@ -73,7 +73,7 @@ simulation = simulator.simulation(thevenin_circuit, temperature=25, nominal_temp
 analysis = simulation.operating_point()
 
 load_node = analysis.load
-print('Node {}: {:5.2f} V'.format(str(load_node), float(load_node)))
+print('Node {}: {:5.2f} V'.format(str(load_node), float(load_node[0])))
 #o#
 
 norton_circuit = Circuit('Norton Representation')
@@ -87,5 +87,5 @@ simulation = simulator.simulation(norton_circuit, temperature=25, nominal_temper
 analysis = simulation.operating_point()
 
 load_node = analysis.load
-print('Node {}: {:5.2f} V'.format(str(load_node), float(load_node)))
+print('Node {}: {:5.2f} V'.format(str(load_node), float(load_node[0])))
 #o#

@@ -28,5 +28,5 @@ simulation = simulator.simulation(circuit, temperature=25, nominal_temperature=2
 analysis = simulation.operating_point()
 
 for node in analysis.nodes.values():
-    print('Node {}: {:4.1f} V'.format(str(node), float(node))) # Fixme: format value + unit
+    print('Node {}: {:4.1f} V'.format(str(node), float(node[0]))) # Fixme: format value + unit
 #o#

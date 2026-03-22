@@ -435,6 +435,13 @@ class Element(metaclass=ElementParameterMetaClass):
     #: SPICE element prefix
     PREFIX = None
 
+    #: Spectre module name (e.g. 'vsource', 'isource', 'vccs')
+    SPECTRE_MODULE = None
+    #: If True, register SPECTRE_MODULE as a builtin model
+    SPECTRE_BUILTIN = False
+    #: Default model prefix for R/C/L elements (e.g. 'R', 'C', 'L')
+    SPECTRE_DEFAULT_PREFIX = None
+
     ##############################################
 
     def __init__(self, netlist, name, *args, **kwargs):
@@ -582,9 +589,66 @@ class Element(metaclass=ElementParameterMetaClass):
 
     ##############################################
 
-    def __str__(self):
+    def to_spice(self):
         """ Return the SPICE element definition. """
         return join_list((self.format_node_names(), self.format_spice_parameters(), self.raw_spice))
+
+    def __str__(self):
+        return self.to_spice()
+
+    ##############################################
+
+    def _resolve_spectre_module(self, context=None):
+        """Determine the Spectre module name for this element."""
+        from .Spectre import spectre_identifier, DEFAULT_MODELS
+
+        # Fixed module (vsource, isource, vccs, etc.)
+        if self.SPECTRE_MODULE is not None:
+            if context is not None and self.SPECTRE_BUILTIN:
+                context.register_builtin(self.SPECTRE_MODULE)
+            return self.SPECTRE_MODULE
+
+        # Explicit model parameter
+        try:
+            model = self.model
+            if model is not None and str(model) != '':
+                return spectre_identifier(str(model))
+        except AttributeError:
+            pass
+
+        # Default OSDI model for R/C/L
+        if self.SPECTRE_DEFAULT_PREFIX is not None:
+            if context is not None:
+                context.register_default_model(self.SPECTRE_DEFAULT_PREFIX)
+            _, default_module = DEFAULT_MODELS[self.SPECTRE_DEFAULT_PREFIX]
+            return default_module
+
+        return None
+
+    def format_spectre_parameters(self):
+        """Return formatted Spectre parameters string from descriptors."""
+        parts = []
+        for parameter_dict in (self._positional_parameters, self._optional_parameters):
+            for parameter in parameter_dict.values():
+                if parameter.spectre_name is not None and parameter.nonzero(self):
+                    s = parameter.to_spectre_str(self)
+                    if s:
+                        parts.append(s)
+        return ' '.join(parts)
+
+    def to_spectre(self, context=None):
+        """Return the Spectre element definition."""
+        module = self._resolve_spectre_module(context)
+        if module is None:
+            return f"// Unsupported element: {self.name}"
+
+        name = self.name.lower()
+        nodes = ' '.join(str(n) for n in self.node_names)
+        params = self.format_spectre_parameters()
+
+        if params:
+            return f"{name} ({nodes}) {module} {params}"
+        return f"{name} ({nodes}) {module}"
 
 ####################################################################################################
 

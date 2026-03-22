@@ -445,7 +445,7 @@ class Netlist:
 
     ##############################################
 
-    def __str__(self) -> str:
+    def to_spice(self) -> str:
         """ Return the formatted list of element and model definitions. """
         # Fixme: order ???
         netlist = TextBuffer()
@@ -454,6 +454,24 @@ class Netlist:
         netlist += self._str_elements()
         netlist += self._str_models()
         return str(netlist)
+
+    def __str__(self) -> str:
+        return self.to_spice()
+
+    ##############################################
+
+    def to_spectre(self, context=None) -> str:
+        """Return the Spectre formatted netlist body (models, subcircuits, elements)."""
+        lines = []
+        for subcircuit in self.subcircuits:
+            lines.append(subcircuit.to_spectre(context))
+            lines.append('')
+        for model in self.models:
+            lines.append(model.to_spectre(context))
+        for element in self.elements:
+            if element.enabled:
+                lines.append(element.to_spectre(context))
+        return '\n'.join(lines)
 
     ##############################################
 
@@ -541,16 +559,35 @@ class SubCircuit(Netlist):
 
     ##############################################
 
-    def __str__(self) -> str:
+    def to_spice(self) -> str:
         """Return the formatted subcircuit definition."""
         netlist = TextBuffer()
         nodes = join_list(self._external_nodes)
         parameters = join_list([f'{key}={value}'
                                 for key, value in self._parameters.items()])
         netlist += '.subckt ' + join_list((self._name, nodes, parameters))
-        netlist += super().__str__()
+        netlist += Netlist.to_spice(self)
         netlist += '.ends ' + self._name
         return str(netlist)
+
+    def __str__(self) -> str:
+        return self.to_spice()
+
+    def to_spectre(self, context=None) -> str:
+        """Return the Spectre subcircuit definition."""
+        name = str(self._name).lower()
+        ext_nodes = ' '.join(str(n) for n in self._external_nodes)
+        lines = [f"subckt {name}({ext_nodes})"]
+        if hasattr(self, '_parameters') and self._parameters:
+            params = ' '.join(f'{k}={v}' for k, v in self._parameters.items())
+            lines.append(f"  parameters {params}")
+        body = super().to_spectre(context)
+        if body:
+            for line in body.split('\n'):
+                if line:
+                    lines.append('  ' + line)
+        lines.append("ends")
+        return '\n'.join(lines)
 
 ####################################################################################################
 
@@ -671,7 +708,7 @@ class Circuit(Netlist):
         _ += self._str_libs(simulator)
         _ += self._str_globals()
         _ += self._str_parameters()
-        _ += super().__str__()
+        _ += super().to_spice()
         return str(_) + os.linesep    # Fixme: linesep here ???
 
     ##############################################
@@ -732,8 +769,15 @@ class Circuit(Netlist):
 
     ##############################################
 
-    def __str__(self) -> str:
+    def to_spice(self) -> str:
         return self.str(simulator=None)
+
+    def __str__(self) -> str:
+        return self.to_spice()
+
+    def to_spectre(self, context=None) -> str:
+        """Return the Spectre formatted circuit body."""
+        return super().to_spectre(context)
 
     ##############################################
 

@@ -726,8 +726,11 @@ class Simulation:
 
     ##############################################
 
-    def __str__(self):
+    def to_spice(self):
         return self.str_netlist() + self.str_simulation()
+
+    def __str__(self):
+        return self.to_spice()
 
     ##############################################
 

@@ -216,6 +216,23 @@ class SubCircuitElement(NPinElement):
             spice_parameters += ' ' + join_dict(self.parameters)
         return spice_parameters
 
+    def to_spectre(self, context=None):
+        from .Spectre import format_spectre_value
+        name = self.name.lower()
+        nodes = ' '.join(str(n) for n in self.node_names)
+        subcircuit_name = str(self.subcircuit_name).lower()
+        params = {}
+        try:
+            for key, value in self.parameters.items():
+                params[key] = format_spectre_value(value)
+        except AttributeError:
+            pass
+        param_str = ' '.join(f'{k}={v}' for k, v in params.items())
+        if param_str:
+            return f"{name} ({nodes}) {subcircuit_name} {param_str}"
+        else:
+            return f"{name} ({nodes}) {subcircuit_name}"
+
 ####################################################################################################
 #
 # Elementary devices: Resistor, Capacitor, Inductor, Switch (VCSw/CCSw)
@@ -269,8 +286,9 @@ class Resistor(DipoleElement):
 
     ALIAS = 'R'
     PREFIX = 'R'
+    SPECTRE_DEFAULT_PREFIX = 'R'
 
-    resistance = FloatPositionalParameter(position=0, key_parameter=False, unit=U_Ω)
+    resistance = FloatPositionalParameter(position=0, key_parameter=False, unit=U_Ω, spectre_name='r')
     ac = FloatKeyParameter('ac', unit=U_Ω)
     multiplier = IntKeyParameter('m')
     scale = FloatKeyParameter('scale')
@@ -441,14 +459,15 @@ class Capacitor(DipoleElement):
 
     ALIAS = 'C'
     PREFIX = 'C'
+    SPECTRE_DEFAULT_PREFIX = 'C'
 
-    capacitance = FloatPositionalParameter(position=0, key_parameter=False, unit=U_F)
+    capacitance = FloatPositionalParameter(position=0, key_parameter=False, unit=U_F, spectre_name='c')
     model = ModelPositionalParameter(position=1, key_parameter=True)
     multiplier = IntKeyParameter('m')
     scale = FloatKeyParameter('scale')
     temperature = FloatKeyParameter('temp', unit=U_Degree)
     device_temperature = FloatKeyParameter('dtemp', unit=U_Degree)
-    initial_condition = FloatKeyParameter('ic')
+    initial_condition = FloatKeyParameter('ic', spectre_name='ic')
 
 ####################################################################################################
 
@@ -609,15 +628,16 @@ class Inductor(DipoleElement):
 
     ALIAS = 'L'
     PREFIX = 'L'
+    SPECTRE_DEFAULT_PREFIX = 'L'
 
-    inductance = FloatPositionalParameter(position=0, key_parameter=False, unit=U_H)
+    inductance = FloatPositionalParameter(position=0, key_parameter=False, unit=U_H, spectre_name='l')
     model = ModelPositionalParameter(position=1, key_parameter=True)
     nt = FloatKeyParameter('nt')
     multiplier = IntKeyParameter('m')
     scale = FloatKeyParameter('scale')
     temperature = FloatKeyParameter('temp', unit=U_Degree)
     device_temperature = FloatKeyParameter('dtemp', unit=U_Degree)
-    initial_condition = FloatKeyParameter('ic')
+    initial_condition = FloatKeyParameter('ic', spectre_name='ic')
 
 ####################################################################################################
 
@@ -805,9 +825,11 @@ class VoltageSource(DipoleElement):
 
     ALIAS = 'V'
     PREFIX = 'V'
+    SPECTRE_MODULE = 'vsource'
+    SPECTRE_BUILTIN = True
 
-    dc_value = FloatKeywordPositionalParameter("DC", position=0, unit=U_V)
-    ac_value = FloatKeywordPositionalParameter("AC", position=1, unit=U_V)
+    dc_value = FloatKeywordPositionalParameter("DC", position=0, unit=U_V, spectre_name='dc')
+    ac_value = FloatKeywordPositionalParameter("AC", position=1, unit=U_V, spectre_name='mag')
     tran_value = ExpressionPositionalParameter(position=2)
 
 ####################################################################################################
@@ -833,9 +855,11 @@ class CurrentSource(DipoleElement):
 
     ALIAS = 'I'
     PREFIX = 'I'
+    SPECTRE_MODULE = 'isource'
+    SPECTRE_BUILTIN = True
 
-    dc_value = FloatKeywordPositionalParameter("DC", position=0, unit=U_A)
-    ac_value = FloatKeywordPositionalParameter("AC", position=1, unit=U_A)
+    dc_value = FloatKeywordPositionalParameter("DC", position=0, unit=U_A, spectre_name='dc')
+    ac_value = FloatKeywordPositionalParameter("AC", position=1, unit=U_A, spectre_name='mag')
     tran_value = ExpressionPositionalParameter(position=2)
 
 ####################################################################################################
@@ -863,8 +887,10 @@ class VoltageControlledCurrentSource(TwoPortElement):
 
     ALIAS = 'VCCS'
     PREFIX = 'G'
+    SPECTRE_MODULE = 'vccs'
+    SPECTRE_BUILTIN = True
 
-    transconductance = ExpressionPositionalParameter(position=0, key_parameter=False)
+    transconductance = ExpressionPositionalParameter(position=0, key_parameter=False, spectre_name='gain')
     multiplier = IntKeyParameter('m')
 
 ####################################################################################################
@@ -889,8 +915,10 @@ class VoltageControlledVoltageSource(TwoPortElement):
 
     ALIAS = 'VCVS'
     PREFIX = 'E'
+    SPECTRE_MODULE = 'vcvs'
+    SPECTRE_BUILTIN = True
 
-    voltage_gain = ExpressionPositionalParameter(position=0, key_parameter=False)
+    voltage_gain = ExpressionPositionalParameter(position=0, key_parameter=False, spectre_name='gain')
 
 ####################################################################################################
 
@@ -920,9 +948,11 @@ class CurrentControlledCurrentSource(DipoleElement):
     ALIAS = 'F'
     LONG_ALIAS = 'CCCS'
     PREFIX = 'F'
+    SPECTRE_MODULE = 'cccs'
+    SPECTRE_BUILTIN = True
 
-    source = ElementNamePositionalParameter(position=0, key_parameter=False)
-    current_gain = ExpressionPositionalParameter(position=1, key_parameter=False)
+    source = ElementNamePositionalParameter(position=0, key_parameter=False, spectre_name='ctlinst', spectre_quote=True)
+    current_gain = ExpressionPositionalParameter(position=1, key_parameter=False, spectre_name='gain')
     multiplier = IntKeyParameter('m')
 
 ####################################################################################################
@@ -950,9 +980,11 @@ class CurrentControlledVoltageSource(DipoleElement):
     ALIAS = 'H'
     LONG_ALIAS = 'CCVS'
     PREFIX = 'H'
+    SPECTRE_MODULE = 'ccvs'
+    SPECTRE_BUILTIN = True
 
-    source = ElementNamePositionalParameter(position=0, key_parameter=False)
-    transresistance = ExpressionPositionalParameter(position=1, key_parameter=False)
+    source = ElementNamePositionalParameter(position=0, key_parameter=False, spectre_name='ctlinst', spectre_quote=True)
+    transresistance = ExpressionPositionalParameter(position=1, key_parameter=False, spectre_name='gain')
 
 ####################################################################################################
 #
@@ -1053,7 +1085,7 @@ class NonLinearVoltageSource(DipoleElement):
 
     ##############################################
 
-    def __str__(self) -> str:
+    def to_spice(self) -> str:
         spice_element = self.format_node_names()
         # Fixme: expression
         if self.table is not None:
@@ -1063,6 +1095,9 @@ class NonLinearVoltageSource(DipoleElement):
         elif self.raw_spice is not None:
             spice_element += ' %s' % self.raw_spice
         return spice_element
+
+    def __str__(self) -> str:
+        return self.to_spice()
 
 ####################################################################################################
 
@@ -1156,8 +1191,8 @@ class Diode(FixedPinElement):
     PINS = (('cathode', 'plus'), ('anode', 'minus'))
 
     model = ModelPositionalParameter(position=0, key_parameter=True)
-    area = FloatKeyParameter('area')
-    multiplier = IntKeyParameter('m')
+    area = FloatKeyParameter('area', spectre_name='area')
+    multiplier = IntKeyParameter('m', spectre_name='$mfactor', spectre_default=1)
     pj = FloatKeyParameter('pj')
     off = FlagParameter('off')
     ic = FloatPairKeyParameter('ic')
@@ -1233,10 +1268,10 @@ class BipolarJunctionTransistor(FixedPinElement):
     PINS = ('collector', 'base', 'emitter', OptionalPin('substrate'))
 
     model = ModelPositionalParameter(position=0, key_parameter=True)
-    area = FloatKeyParameter('area')
+    area = FloatKeyParameter('area', spectre_name='area')
     areac = FloatKeyParameter('areac')
     areab = FloatKeyParameter('areab')
-    multiplier = IntKeyParameter('m')
+    multiplier = IntKeyParameter('m', spectre_name='$mfactor', spectre_default=1)
     off = FlagParameter('off')
     ic = FloatPairKeyParameter('ic')
     temperature = FloatKeyParameter('temp', unit=U_Degree)
@@ -1295,8 +1330,8 @@ class JunctionFieldEffectTransistor(JfetElement):
     PREFIX = 'J'
 
     model = ModelPositionalParameter(position=0, key_parameter=True)
-    area = FloatKeyParameter('area')
-    multiplier = IntKeyParameter('m')
+    area = FloatKeyParameter('area', spectre_name='area')
+    multiplier = IntKeyParameter('m', spectre_name='$mfactor', spectre_default=1)
     off = FlagParameter('off')
     ic = FloatPairKeyParameter('ic')
     temperature = FloatKeyParameter('temp', unit=U_Degree)
@@ -1346,8 +1381,8 @@ class Mesfet(JfetElement):
     PREFIX = 'Z'
 
     model = ModelPositionalParameter(position=0, key_parameter=True)
-    area = FloatKeyParameter('area')
-    multiplier = IntKeyParameter('m')
+    area = FloatKeyParameter('area', spectre_name='area')
+    multiplier = IntKeyParameter('m', spectre_name='$mfactor', spectre_default=1)
     off = FlagParameter('off')
     ic = FloatPairKeyParameter('ic')
 
@@ -1451,9 +1486,9 @@ class Mosfet(FixedPinElement):
     PINS = ('drain', 'gate', 'source', ('bulk', 'substrate'))
 
     model = ModelPositionalParameter(position=0, key_parameter=True)
-    multiplier = IntKeyParameter('m')
-    length = FloatKeyParameter('l', unit=U_m)
-    width = FloatKeyParameter('w', unit=U_m)
+    multiplier = IntKeyParameter('m', spectre_name='$mfactor', spectre_default=1)
+    length = FloatKeyParameter('l', unit=U_m, spectre_name='l')
+    width = FloatKeyParameter('w', unit=U_m, spectre_name='w')
     drain_area = FloatKeyParameter('ad')
     source_area = FloatKeyParameter('as')
     drain_perimeter = FloatKeyParameter('pd')

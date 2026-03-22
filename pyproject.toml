@@ -37,6 +37,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "twine", "build", "flake8", "scipy", "pint", "KiCadRW", "sexpdata"]
+vacask = ["vacask-bin>=0.3.0"]
 
 [project.scripts]
 inspice-post-installation = "InSpice.Scripts.InSpice_post_installation:main"
