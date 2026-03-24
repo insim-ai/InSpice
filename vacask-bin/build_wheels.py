@@ -108,7 +108,7 @@ def build_package_layout(extracted_dir, pkg_dir, version, exe_suffix):
         copy_tree(sim_lib, os.path.join(data_bin, 'lib'))
 
     # Copy DLLs (Windows: simulator/*.dll)
-    if exe_suffix == '.exe':
+    if exe_suffix == '.exe' and os.path.isdir(sim_dir):
         for f in os.listdir(sim_dir):
             if f.lower().endswith('.dll'):
                 shutil.copy2(os.path.join(sim_dir, f), os.path.join(data_bin, f))
@@ -259,9 +259,15 @@ def main():
         print(f'  Extracting to {extract_dir}')
         extract_archive(archive, info['ext'], extract_dir)
 
-        # Find the extracted root (may be nested in a directory)
+        # Find the extracted root (may be nested in a wrapper directory).
+        # Don't unwrap if the sole entry is a known content dir like
+        # 'simulator' or 'lib' — those are actual archive contents, not a
+        # wrapper directory.
         entries = os.listdir(extract_dir)
-        if len(entries) == 1 and os.path.isdir(os.path.join(extract_dir, entries[0])):
+        content_dirs = {'simulator', 'lib'}
+        if (len(entries) == 1
+                and os.path.isdir(os.path.join(extract_dir, entries[0]))
+                and entries[0] not in content_dirs):
             extracted_root = os.path.join(extract_dir, entries[0])
         else:
             extracted_root = extract_dir
