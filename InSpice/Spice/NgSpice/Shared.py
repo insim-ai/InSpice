@@ -374,10 +374,41 @@ class Plot(dict):
     ##############################################
 
     def _to_noise_analysis(self):
+        # ngspice's .noise produces two plots:
+        #   noise1 — {inoise,onoise}_spectrum (type voltage_density) + frequency
+        #   noise2 — {inoise,onoise}_total (type voltage), no abscissa
+        # Plot.nodes() filters on type == voltage, which excludes the spectral-density
+        # vectors. Handle both plot shapes by classifying voltage/current and their
+        # density counterparts together, and pull out the frequency vector if present.
+        frequency = None
+        if 'frequency' in self:
+            frequency = self['frequency'].to_waveform(to_real=True)
+
+        st = None
+        for variable in self.values():
+            st = variable._ngspice_shared.simulation_type
+            break
+        voltage_types = {st.voltage} if st is not None else set()
+        current_types = {st.current} if st is not None else set()
+        if st is not None and hasattr(st, 'voltage_density'):
+            voltage_types.add(st.voltage_density)
+        if st is not None and hasattr(st, 'current_density'):
+            current_types.add(st.current_density)
+
+        nodes, branches = [], []
+        for variable in self.values():
+            if variable.is_internal_parameter or variable._name == 'frequency':
+                continue
+            if variable._type in voltage_types:
+                nodes.append(variable.to_waveform(frequency))
+            elif variable._type in current_types:
+                branches.append(variable.to_waveform(frequency))
+
         return NoiseAnalysis(
             simulation=self._simulation,
-            nodes=self.nodes(),
-            branches=self.branches(),
+            frequency=frequency,
+            nodes=nodes,
+            branches=branches,
             internal_parameters=self.internal_parameters(),
         )
 
