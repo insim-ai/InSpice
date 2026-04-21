@@ -458,15 +458,30 @@ class PoleZeroAnalysis(Analysis):
 
 class NoiseAnalysis(Analysis):
 
-    """This class implements Noise analysis."""
+    """This class implements Noise analysis.
+
+    For the spectral-density plot (ngspice's ``noise1``) :attr:`frequency`
+    returns the frequency abscissa and :attr:`nodes` contains the
+    ``inoise_spectrum`` / ``onoise_spectrum`` waveforms. For the integrated
+    plot (``noise2``) :attr:`frequency` is ``None`` and :attr:`nodes`
+    contains the scalar ``inoise_total`` / ``onoise_total`` waveforms.
+    """
 
     ##############################################
 
-    def __init__(self, simulation, nodes, branches, internal_parameters):
+    def __init__(self, simulation, nodes, branches, internal_parameters, frequency=None):
         super().__init__(
             simulation=simulation, nodes=nodes, branches=branches,
             internal_parameters=internal_parameters,
         )
+        self._frequency = frequency
+
+    ##############################################
+
+    @property
+    def frequency(self):
+        """Numpy array for the frequency abscissa, or ``None`` for the integrated plot."""
+        return self._frequency
 
 ####################################################################################################
 
