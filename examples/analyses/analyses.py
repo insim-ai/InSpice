@@ -142,6 +142,12 @@ def do_noise_analysis():
     print("Total noise (Vrms) at circuit output:", np.array(analysis.nodes['onoise_total'])[0])
     print("Total noise (Vrms) as if at circuit input:", np.array(analysis.nodes['inoise_total'])[0])
 
+    # ngspice creates a second plot (noise1) with the spectral density vs frequency.
+    spectrum = simulator._ngspice_shared.plot(simulation, "noise1").to_analysis()
+    print("Spectral density sweep:", len(np.array(spectrum.frequency)), "points")
+    print("Output noise density @ lowest frequency:",
+          np.array(spectrum.nodes['onoise_spectrum'])[0], "V/sqrt(Hz)")
+
 def do_distortion_analysis(f2overf1):
     circuit, n = simple_bjt_amp()
     com = 0

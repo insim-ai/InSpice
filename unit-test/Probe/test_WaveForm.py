@@ -141,6 +141,26 @@ class TestUnits(unittest.TestCase):
 
 ####################################################################################################
 
+class TestNoiseAnalysis(unittest.TestCase):
+
+    """Regression test for the :class:`NoiseAnalysis` frequency abscissa."""
+
+    def test_frequency_default_is_none(self):
+        # noise2 (integrated totals) has no frequency axis.
+        analysis = NoiseAnalysis(simulation=None, nodes=(), branches=(), internal_parameters=())
+        self.assertIsNone(analysis.frequency)
+
+    def test_frequency_passthrough(self):
+        # noise1 (spectral) carries a frequency abscissa.
+        freq = np.logspace(1, 5, 41)
+        analysis = NoiseAnalysis(
+            simulation=None, nodes=(), branches=(), internal_parameters=(),
+            frequency=freq,
+        )
+        np_test.assert_array_equal(analysis.frequency, freq)
+
+####################################################################################################
+
 if __name__ == '__main__':
 
     unittest.main()
