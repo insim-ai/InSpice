@@ -102,7 +102,8 @@ class VacaskServer:
         if err_output:
             self._logger.debug(os.linesep + err_output)
 
-        if 'Error' in output or 'error' in err_output or 'failed' in output.lower() or 'aborted' in output.lower():
+        combined = (output + err_output).lower()
+        if any(kw in combined for kw in ('error', 'failed', 'aborted')):
             raise NameError("Errors found by VACASK:\n" + output + err_output)
 
     ##############################################
