@@ -48,7 +48,8 @@ class XyceServer:
 
     Example of usage::
 
-      spice_server = XyceServer(xyce_command='/path/to/Xyce')
+      spice_server = XyceServer(xyce_command='/path/to/Xyce',
+                                xyce_args=('-plugin', '/path/to/plugin.so'))
       raw_file = spice_server(spice_input)
 
     It returns a :obj:`InSpice.Spice.RawFile` instance.
@@ -73,6 +74,7 @@ class XyceServer:
     def __init__(self, **kwargs):
 
         self._xyce_command = kwargs.get('xyce_command') or self.XYCE_COMMAND
+        self._xyce_args = tuple(kwargs.get('xyce_args', ()))
 
     ##############################################
 
@@ -120,7 +122,7 @@ class XyceServer:
         with open(input_filename, 'w') as f:
             f.write(str(spice_input))
 
-        command = (self._xyce_command, '-r', output_filename, input_filename)
+        command = (self._xyce_command, *self._xyce_args, '-r', output_filename, input_filename)
         self._logger.info('Run {}'.format(' '.join(command)))
         process = subprocess.Popen(
             command,
