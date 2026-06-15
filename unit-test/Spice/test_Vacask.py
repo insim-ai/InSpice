@@ -434,15 +434,18 @@ class TestVacaskServerErrorHandling(unittest.TestCase):
 
 class TestSpectreUnsupportedSources(unittest.TestCase):
 
-    def test_sffm_spectre_not_supported(self):
-        """S9: SFFM sources must raise NotImplementedError for Spectre output."""
+    def test_sffm_spectre_supported(self):
+        """SFFM maps to vacask's native type="fm" waveform."""
         from InSpice.Spice.HighLevelElement import SingleFrequencyFMMixin, VoltageSourceMixinAbc
         class TestSFFM(VoltageSourceMixinAbc, SingleFrequencyFMMixin):
             pass
         src = TestSFFM(offset=0, amplitude=1, carrier_frequency=1e3,
                        modulation_index=5, signal_frequency=10)
-        with self.assertRaises(NotImplementedError):
-            src.format_spectre_parameters()
+        result = src.format_spectre_parameters()
+        self.assertIn('type="fm"', result)
+        self.assertIn('freq=1000', result)
+        self.assertIn('modfreq=10', result)
+        self.assertIn('modindex=5', result)
 
     def test_am_spectre_not_supported(self):
         """S9: AM sources must raise NotImplementedError for Spectre output."""

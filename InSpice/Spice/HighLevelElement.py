@@ -304,7 +304,12 @@ class PulseMixin(SourceMixinAbc):
         delay = self.delay_time
         if delay is not None and float(delay) != 0:
             parts.append(f"delay={format_spectre_value(delay)}")
-        parts.append(f"rise={format_spectre_value(self.rise_time)}")
+        # vacask rejects rise <= 0 and defaults rise to 1n when omitted. InSpice's
+        # rise_time defaults to 0, so only emit rise= when it is > 0 and otherwise
+        # let vacask fall back to its 1n default. Caveat: a true zero-rise edge is
+        # not representable in vacask. (fall/width/period of 0 are valid in vacask.)
+        if self.rise_time is not None and float(self.rise_time) > 0:
+            parts.append(f"rise={format_spectre_value(self.rise_time)}")
         parts.append(f"fall={format_spectre_value(self.fall_time)}")
         parts.append(f"width={format_spectre_value(self.pulse_width)}")
         parts.append(f"period={format_spectre_value(self.period)}")
@@ -383,16 +388,37 @@ class ExponentialMixin(SourceMixinAbc):
 
     def format_spectre_parameters(self):
         from .Spectre import format_spectre_value
+        # vacask's exp waveform uses t_fall_start = delay + td2, i.e. td2 is the
+        # *duration* of the rise measured from delay (devvisrc.cpp sourceCompute),
+        # whereas SPICE's TD2 (fall_delay_time) is absolute from t=0. vacask also
+        # requires td2 > 0 and divides the rising exponential by tau1. Map the
+        # SPICE parameters to vacask's semantics, and fail loudly rather than emit
+        # a netlist vacask rejects opaquely (or silently falls back to dc on).
+        if self.fall_delay_time is None:
+            raise ValueError(
+                "VACASK exp source requires an explicit fall_delay_time: vacask has "
+                "no default for td2 and rejects td2 <= 0."
+            )
+        if self.rise_time_constant is None:
+            raise ValueError(
+                "VACASK exp source requires an explicit rise_time_constant: vacask "
+                "divides the rising exponential by tau1."
+            )
+        delay = float(self.rise_delay_time) if self.rise_delay_time is not None else 0.0
+        td2 = float(self.fall_delay_time) - delay
+        if td2 <= 0:
+            raise ValueError(
+                "VACASK exp source requires fall_delay_time later than rise_delay_time: "
+                "td2 = fall_delay_time - rise_delay_time must be > 0."
+            )
         parts = []
         parts.append('type="exp"')
         parts.append(f"val0={format_spectre_value(self.initial_value)}")
         parts.append(f"val1={format_spectre_value(self.pulsed_value)}")
-        if self.rise_delay_time is not None:
+        if delay != 0:
             parts.append(f"delay={format_spectre_value(self.rise_delay_time)}")
-        if self.rise_time_constant is not None:
-            parts.append(f"tau1={format_spectre_value(self.rise_time_constant)}")
-        if self.fall_delay_time is not None:
-            parts.append(f"td2={format_spectre_value(self.fall_delay_time)}")
+        parts.append(f"tau1={format_spectre_value(self.rise_time_constant)}")
+        parts.append(f"td2={format_spectre_value(td2)}")
         if self.fall_time_constant is not None:
             parts.append(f"tau2={format_spectre_value(self.fall_time_constant)}")
         return ' '.join(parts)
@@ -458,15 +484,13 @@ class PieceWiseLinearMixin(SourceMixinAbc):
         return _
 
     def format_spectre_parameters(self):
-        from .Spectre import format_spectre_value
-        parts = []
-        parts.append('type="pwl"')
-        values = self.values
-        pwl_pairs = []
-        for i in range(0, len(values), 2):
-            pwl_pairs.append(f"{format_spectre_value(values[i])}, {format_spectre_value(values[i+1])}")
-        parts.append(f"wave=[{'; '.join(pwl_pairs)}]")
-        return ' '.join(parts)
+        # vacask's sourceCompute has no Pwl branch (devvisrc.cpp): type="pwl" sets
+        # up without error but computes an uninitialised value, so PWL is unusable
+        # end-to-end. Fail loudly rather than emit a silently-broken netlist.
+        raise NotImplementedError(
+            "PWL transient sources are not yet supported by VACASK "
+            "(no Pwl branch in the source compute path)"
+        )
 
 ####################################################################################################
 
@@ -519,7 +543,18 @@ class SingleFrequencyFMMixin(SourceMixinAbc):
                 ')')
 
     def format_spectre_parameters(self):
-        raise NotImplementedError("SFFM sources are not supported in Spectre/VACASK output")
+        from .Spectre import format_spectre_value
+        # SPICE SFFM(VO VA FC MDI FS) matches vacask's type="fm" exactly with all
+        # phase params 0: V(t) = sinedc + ampl*sin(2*pi*freq*t + modindex*sin(2*pi*modfreq*t))
+        # (devvisrc.cpp sourceCompute Fm branch).
+        parts = []
+        parts.append('type="fm"')
+        parts.append(f"sinedc={format_spectre_value(self.offset)}")
+        parts.append(f"ampl={format_spectre_value(self.amplitude)}")
+        parts.append(f"freq={format_spectre_value(self.carrier_frequency)}")
+        parts.append(f"modindex={format_spectre_value(self.modulation_index)}")
+        parts.append(f"modfreq={format_spectre_value(self.signal_frequency)}")
+        return ' '.join(parts)
 
 ####################################################################################################
 
@@ -846,6 +881,7 @@ class SingleFrequencyFMVoltageSource(VoltageSource, VoltageSourceMixinAbc, Singl
     ##############################################
 
     format_spice_parameters = SingleFrequencyFMMixin.format_spice_parameters
+    format_spectre_parameters = SingleFrequencyFMMixin.format_spectre_parameters
 
 ####################################################################################################
 
@@ -866,6 +902,7 @@ class SingleFrequencyFMCurrentSource(CurrentSource, CurrentSourceMixinAbc, Singl
     ##############################################
 
     format_spice_parameters = SingleFrequencyFMMixin.format_spice_parameters
+    format_spectre_parameters = SingleFrequencyFMMixin.format_spectre_parameters
 
 ####################################################################################################
 

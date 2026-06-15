@@ -212,6 +212,27 @@ class TestHighLevelElementSpectre(unittest.TestCase):
         self.assertIn('type="exp"', result)
         self.assertIn('val0=0', result)
         self.assertIn('val1=5', result)
+        # vacask td2 is the rise duration from delay: fall_delay - rise_delay = 1e-6
+        self.assertIn('delay=1e-06', result)
+        self.assertIn('tau1=1e-06', result)
+        self.assertIn('td2=1e-06', result)
+        self.assertIn('tau2=1e-06', result)
+        # the absolute SPICE TD2 (2e-6) must NOT leak through as td2
+        self.assertNotIn('td2=2e-06', result)
+
+    def test_pulse_voltage_source_zero_rise(self):
+        # rise_time defaults to 0; vacask rejects rise <= 0 so it must be omitted,
+        # letting vacask fall back to its 1n default.
+        circuit = Circuit('Test')
+        circuit.PulseVoltageSource('clk', 'clk', circuit.gnd,
+                                    initial_value=0, pulsed_value=5,
+                                    pulse_width=5@u_ms, period=10@u_ms,
+                                    fall_time=1@u_us)
+        element = circuit['Vclk']
+        ctx = SpectreContext()
+        result = element.to_spectre(ctx)
+        self.assertIn('type="pulse"', result)
+        self.assertNotIn('rise=', result)
 
     def test_pwl_voltage_source(self):
         circuit = Circuit('Test')
@@ -219,10 +240,37 @@ class TestHighLevelElementSpectre(unittest.TestCase):
                                              values=[(0, 0), (1e-3, 5)])
         element = circuit['Vpwl']
         ctx = SpectreContext()
+        # vacask has no Pwl compute branch, so PWL must fail loudly, not emit.
+        with self.assertRaises(NotImplementedError):
+            element.to_spectre(ctx)
+
+    def test_sffm_voltage_source(self):
+        circuit = Circuit('Test')
+        circuit.SingleFrequencyFMVoltageSource('fm', 'out', circuit.gnd,
+                                               offset=0, amplitude=1,
+                                               carrier_frequency=1@u_kHz,
+                                               modulation_index=5,
+                                               signal_frequency=100@u_Hz)
+        element = circuit['Vfm']
+        ctx = SpectreContext()
         result = element.to_spectre(ctx)
         self.assertIn('vsource', result)
-        self.assertIn('type="pwl"', result)
-        self.assertIn('wave=[', result)
+        self.assertIn('type="fm"', result)
+        self.assertIn('freq=1000', result)
+        self.assertIn('modfreq=100', result)
+        self.assertIn('modindex=5', result)
+
+    def test_generic_voltage_source_tran_raises(self):
+        # A generic VoltageSource carries a raw SPICE transient in tran_value, which
+        # has no Spectre translation and would be silently dropped (-> flat DC).
+        circuit = Circuit('Test')
+        circuit.V('sig', 'inp', circuit.gnd, dc_value=0, tran_value='SIN(0 1 1k)')
+        element = circuit['Vsig']
+        ctx = SpectreContext()
+        with self.assertRaises(NotImplementedError):
+            element.to_spectre(ctx)
+        # The ngspice path must still emit the transient verbatim.
+        self.assertIn('SIN(0 1 1k)', element.to_spice())
 
 ####################################################################################################
 

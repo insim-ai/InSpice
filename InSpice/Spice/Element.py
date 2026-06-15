@@ -642,6 +642,22 @@ class Element(metaclass=ElementParameterMetaClass):
         if module is None:
             return f"// Unsupported element: {self.name}"
 
+        # A generic VoltageSource/CurrentSource carries any transient waveform in
+        # tran_value as a raw SPICE string (an ExpressionPositionalParameter with
+        # no spectre_name). format_spectre_parameters only emits params whose
+        # spectre_name is not None, so tran_value would be silently dropped here,
+        # leaving the source as a flat dc=0 on the vacask path. Fail loudly and
+        # point users to the dedicated structural source classes instead.
+        tran_value = getattr(self, 'tran_value', None)
+        if tran_value is not None and str(tran_value).strip():
+            raise NotImplementedError(
+                f"Element {self.name} carries a raw SPICE transient ({tran_value!r}) "
+                "that cannot be translated to the Spectre/VACASK form and would be "
+                "silently dropped (yielding a flat DC source). Use a dedicated "
+                "structural source class instead (e.g. SinusoidalVoltageSource, "
+                "PulseVoltageSource, ExponentialVoltageSource)."
+            )
+
         name = self.name.lower()
         nodes = ' '.join(str(n) for n in self.node_names)
         params = self.format_spectre_parameters()
