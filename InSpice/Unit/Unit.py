@@ -1459,11 +1459,14 @@ class UnitValues(np.ndarray):
 
         # Floating functions
         # --------------------------------------------------
-        np.isfinite:  CONVERSION.NOT_IMPLEMENTED,   # ! _T
-        np.isinf:     CONVERSION.NOT_IMPLEMENTED,   # ! _T
-        np.isnan:     CONVERSION.NOT_IMPLEMENTED,   # ! _T
+        # Unit-agnostic boolean predicates: operate on the raw values and return a
+        # bool array (units are irrelevant). matplotlib calls np.isnan() on plotted
+        # data, so these must pass through rather than raise NotImplementedError.
+        np.isfinite:  CONVERSION.FLOAT,
+        np.isinf:     CONVERSION.FLOAT,
+        np.isnan:     CONVERSION.FLOAT,
         np.fabs:      CONVERSION.NOT_IMPLEMENTED,   # ! _
-        np.signbit:   CONVERSION.NOT_IMPLEMENTED,   # ! _T
+        np.signbit:   CONVERSION.FLOAT,
         np.copysign:  CONVERSION.NOT_IMPLEMENTED,   # !
         np.nextafter: CONVERSION.NOT_IMPLEMENTED,   # !
         np.spacing:   CONVERSION.NOT_IMPLEMENTED,   # !
