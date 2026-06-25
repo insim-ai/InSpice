@@ -650,6 +650,8 @@ class Circuit(Netlist):
 
         for include in self._includes:
             circuit.include(include)
+        for name, section in self._libs:
+            circuit.lib(name, section)
         for name, value in self._parameters.items():
             circuit.parameter(name, value)
 
