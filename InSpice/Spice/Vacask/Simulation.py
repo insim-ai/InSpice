@@ -27,6 +27,7 @@ VACASK uses Spectre-like syntax, not SPICE. This module translates InSpice Circu
 ####################################################################################################
 
 import logging
+from pathlib import Path
 
 ####################################################################################################
 
@@ -87,6 +88,21 @@ class VacaskSimulation(Simulation):
         lines.append('ground 0')
         lines.append('')
 
+        # Include directives
+        has_includes = False
+        for path in self._circuit._includes:
+            lines.append(f'include "{Path(path).resolve()}"')
+            has_includes = True
+        for lib_path, section in self._circuit._libs:
+            resolved = Path(str(lib_path)).resolve()
+            if section:
+                lines.append(f'include "{resolved}" section={section}')
+            else:
+                lines.append(f'include "{resolved}"')
+            has_includes = True
+        if has_includes:
+            lines.append('')
+
         # Collect OSDI files from default models too
         for prefix in context.default_models:
             if prefix in DEFAULT_MODELS:
@@ -113,9 +129,14 @@ class VacaskSimulation(Simulation):
             for line in model_lines:
                 lines.append(line)
 
+        # Parameters
+        if self._circuit._parameters:
+            params = ' '.join(f'{k}={v}' for k, v in self._circuit._parameters.items())
+            lines.append(f'parameters {params}')
+
         # Circuit body (subcircuits with models inside, explicit models, elements)
         if circuit_body:
-            if model_lines:
+            if model_lines or self._circuit._parameters:
                 lines.append('')
             for line in circuit_body.split('\n'):
                 lines.append(line)

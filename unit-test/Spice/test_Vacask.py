@@ -487,5 +487,104 @@ class TestNoiseSpectreOutput(unittest.TestCase):
 
 ####################################################################################################
 
+class TestVacaskIncludesAndLibs(unittest.TestCase):
+
+    def setUp(self):
+        self.simulator = Simulator.factory(simulator='vacask')
+
+    def _make_simulation(self, circuit):
+        return self.simulator.simulation(circuit)
+
+    ##############################################
+
+    def test_includes_in_spectre_output(self):
+        circuit = Circuit('Include Test')
+        circuit.include('/some/path/model.lib')
+        circuit.V('in', 'inp', circuit.gnd, 5)
+        circuit.R(1, 'inp', circuit.gnd, kilo(1))
+
+        simulation = self._make_simulation(circuit)
+        simulation.operating_point(run=False)
+        netlist = str(simulation)
+
+        self.assertIn('include "/some/path/model.lib"', netlist)
+
+    ##############################################
+
+    def test_libs_with_section_in_spectre_output(self):
+        circuit = Circuit('Lib Test')
+        circuit.lib('/pdk/models/corners.lib', 'tt')
+        circuit.V('in', 'inp', circuit.gnd, 5)
+        circuit.R(1, 'inp', circuit.gnd, kilo(1))
+
+        simulation = self._make_simulation(circuit)
+        simulation.operating_point(run=False)
+        netlist = str(simulation)
+
+        self.assertIn('include "/pdk/models/corners.lib" section=tt', netlist)
+
+    ##############################################
+
+    def test_lib_without_section(self):
+        circuit = Circuit('Lib No Section')
+        circuit.lib('/pdk/models/all.lib', None)
+        circuit.V('in', 'inp', circuit.gnd, 5)
+        circuit.R(1, 'inp', circuit.gnd, kilo(1))
+
+        simulation = self._make_simulation(circuit)
+        simulation.operating_point(run=False)
+        netlist = str(simulation)
+
+        self.assertIn('include "/pdk/models/all.lib"', netlist)
+        self.assertNotIn('section=', netlist)
+
+    ##############################################
+
+    def test_parameters_in_spectre_output(self):
+        circuit = Circuit('Param Test')
+        circuit.parameter('vdd', '1.8')
+        circuit.parameter('temp', '27')
+        circuit.V('in', 'inp', circuit.gnd, 5)
+        circuit.R(1, 'inp', circuit.gnd, kilo(1))
+
+        simulation = self._make_simulation(circuit)
+        simulation.operating_point(run=False)
+        netlist = str(simulation)
+
+        self.assertIn('parameters vdd=1.8 temp=27', netlist)
+
+    ##############################################
+
+    def test_includes_before_loads(self):
+        circuit = Circuit('Order Test')
+        circuit.include('/some/path/model.lib')
+        circuit.V('in', 'inp', circuit.gnd, 5)
+        circuit.R(1, 'inp', circuit.gnd, kilo(1))
+
+        simulation = self._make_simulation(circuit)
+        simulation.operating_point(run=False)
+        netlist = str(simulation)
+
+        include_pos = netlist.index('include "/some/path/model.lib"')
+        load_pos = netlist.index('load ')
+        self.assertLess(include_pos, load_pos)
+
+####################################################################################################
+
+class TestClonePreservesLibs(unittest.TestCase):
+
+    def test_clone_preserves_libs(self):
+        circuit = Circuit('Clone Lib Test')
+        circuit.lib('/pdk/corners.lib', 'tt')
+        circuit.lib('/pdk/models.lib', None)
+        circuit.V('in', 'inp', circuit.gnd, 5)
+        circuit.R(1, 'inp', circuit.gnd, kilo(1))
+
+        cloned = circuit.clone('Cloned')
+
+        self.assertEqual(list(cloned._libs), [('/pdk/corners.lib', 'tt'), ('/pdk/models.lib', None)])
+
+####################################################################################################
+
 if __name__ == '__main__':
     unittest.main()
