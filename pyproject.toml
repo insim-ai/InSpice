@@ -40,7 +40,7 @@ dev = ["pytest", "twine", "build", "flake8", "scipy", "pint", "KiCadRW", "sexpda
 vacask = ["vacask-bin>=0.3.0"]
 
 [project.scripts]
-inspice-post-installation = "InSpice.Scripts.InSpice_post_installation:main"
+inspice-post-installation = "InSpice.Scripts.inspice_post_installation:main"
 
 [tool.setuptools]
 include-package-data = true
