@@ -29,7 +29,7 @@
 ####################################################################################################
 
 from pathlib import Path
-from zipfile import ZipFile
+import py7zr
 import argparse
 import os
 import shutil
@@ -118,12 +118,12 @@ class CircuitTest:
 
 class InSpicePostInstallation:
 
-    GITHUB_URL = 'https://github.com/Innovoltive/InSpice'
+    GITHUB_URL = 'https://github.com/insim-ai/InSpice'
 
     NGSPICE_BASE_URL = 'https://sourceforge.net/projects/ngspice/files'
     NGSPICE_RELEASE_URL = NGSPICE_BASE_URL + '/ng-spice-rework'
-    NGSPICE_WINDOWS_DLL_URL = NGSPICE_RELEASE_URL + '/{0}/ngspice-{0}_dll_64.zip'
-    NGSPICE_WINDOWS_DLL_OLD_URL = NGSPICE_RELEASE_URL + '/old-releases/{0}/ngspice-{0}_dll_64.zip'
+    NGSPICE_WINDOWS_DLL_URL = NGSPICE_RELEASE_URL + '/{0}/ngspice-{0}_dll_64.7z'
+    NGSPICE_WINDOWS_DLL_OLD_URL = NGSPICE_RELEASE_URL + '/old-releases/{0}/ngspice-{0}_dll_64.7z'
     NGSPICE_MANUAL_URL = NGSPICE_RELEASE_URL + '/{0}/ngspice-{0}-manual.pdf/download'
     NGSPICE_MANUAL_OLD_URL = NGSPICE_RELEASE_URL + '/old-releases/{0}/ngspice-{0}-manual.pdf/download'
 
@@ -218,7 +218,7 @@ class InSpicePostInstallation:
         with tempfile.TemporaryDirectory() as tmp_directory:
             tmp_directory = Path(tmp_directory)
             url = self.NGSPICE_WINDOWS_DLL_URL.format(self.ngspice_version)
-            zip_path = tmp_directory.joinpath('ngspice-{}_dll_64.zip'.format(self.ngspice_version))
+            zip_path = tmp_directory.joinpath('ngspice-{}_dll_64.7z'.format(self.ngspice_version))
             dst_path = Path(NgSpice.__file__).parent
             try:
                 self._download_file(url, zip_path)
@@ -226,7 +226,7 @@ class InSpicePostInstallation:
                 print('Download failed, trying another URL...')
                 url = self.NGSPICE_WINDOWS_DLL_OLD_URL.format(self.ngspice_version)
                 self._download_file(url, zip_path)
-            with ZipFile(zip_path) as zip_file:
+            with py7zr.SevenZipFile(zip_path) as zip_file:
                 zip_file.extractall(path=dst_path)
                 print('Extracted {} in {}'.format(zip_path, dst_path.joinpath('Spice64_dll')))
 
@@ -461,7 +461,7 @@ class InSpicePostInstallation:
 
         with tempfile.TemporaryDirectory() as tmp_directory:
             self._download_file(RELEASE_URL, zip_path)
-            with ZipFile(zip_path) as zip_file:
+            with py7zr.SevenZipFile(zip_path) as zip_file:
                 zip_file.extractall(path=tmp_directory)
             examples_path = Path(tmp_directory).joinpath('InSpice-{}'.format(version), 'examples')
             shutil.copytree(examples_path, dst_path)
