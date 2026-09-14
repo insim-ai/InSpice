@@ -85,6 +85,7 @@ from typing import TYPE_CHECKING, Iterator, Self, Union
 import keyword
 import logging
 import os
+from dataclasses import dataclass, field
 
 # import networkx
 
@@ -104,6 +105,21 @@ if TYPE_CHECKING:
 ####################################################################################################
 
 _module_logger = logging.getLogger(__name__)
+
+####################################################################################################
+
+@dataclass
+class _IncludeDirective:
+    """An include or library reference with backend-specific options."""
+
+    path: Path | str
+    section: str | None = None
+    options: dict = field(default_factory=dict)
+
+    def require_spice_compatible(self) -> None:
+        if self.options:
+            names = ', '.join(sorted(self.options))
+            raise ValueError(f"SPICE include/lib output does not support options: {names}")
 
 ####################################################################################################
 
@@ -630,8 +646,8 @@ class Circuit(Netlist):
         self.title = str(title)
         self._ground = ground
         self._global_nodes = set(global_nodes)   # .global
-        self._includes = []   # .include
-        self._libs = []   # .lib, contains a (name, section) tuple
+        self._include_directives = []   # .include
+        self._lib_directives = []   # .lib
         self._parameters = {}   # .param
 
         # Fixme: not implemented
@@ -648,10 +664,17 @@ class Circuit(Netlist):
         circuit = self.__class__(title, self._ground, set(self._global_nodes))
         self.copy_to(circuit)
 
-        for include in self._includes:
-            circuit.include(include)
-        for name, section in self._libs:
-            circuit.lib(name, section)
+        return circuit
+
+    ##############################################
+
+    def copy_to(self, circuit: 'Circuit') -> 'Circuit':
+        """Copy circuit contents, including directives and their options."""
+        super().copy_to(circuit)
+        for directive in self._include_directives:
+            circuit.include(directive.path, **directive.options)
+        for directive in self._lib_directives:
+            circuit.lib(directive.path, directive.section, **directive.options)
         for name, value in self._parameters.items():
             circuit.parameter(name, value)
 
@@ -661,32 +684,53 @@ class Circuit(Netlist):
 
     @property
     def includes(self) -> Iterator[Path]:
-        return iter(self._includes)
+        return (directive.path for directive in self._include_directives)
+
+    @property
+    def _includes(self):
+        # Retain the legacy path-only view for existing readers.
+        return list(self.includes)
+
+    @property
+    def _libs(self):
+        # Retain the legacy (name, section) view for existing readers.
+        return [(directive.path, directive.section) for directive in self._lib_directives]
 
     ##############################################
 
-    def include(self, path: Union[Path, str, 'Library.SubCircuit'], warn: bool = True) -> None:
-        """Include a file."""
+    def include(self, path: Union[Path, str, 'Library.SubCircuit'], warn: bool = True, **options) -> None:
+        """Include a file, optionally with backend-specific directive options.
+
+        For example, ``include(path, lang='ngspice')`` requests a foreign
+        SPICE include when generating VACASK output. Options are validated by
+        the target serializer; ordinary SPICE output rejects extra options.
+        Duplicate detection includes the options as well as the resolved path.
+        """
         # Fixme: str(path) ?
         # Fixme: circular import...
         from . import Library
         if isinstance(path, Library.Subcircuit) or isinstance(path, Library.Model):
             path = path.path
         path = Path(path).resolve()
-        if path not in self._includes:
-            self._includes.append(path)
+        directive = _IncludeDirective(path, options=options)
+        if directive not in self._include_directives:
+            self._include_directives.append(directive)
         elif warn:
-            self._logger.warn(f"Duplicated include {path}")
+            self._logger.warning(f"Duplicated include {path}")
 
     ##############################################
 
-    def lib(self, name: str, section: str = None) -> None:
-        """Load a library."""
-        v = (name, section)
-        if v not in self._libs:
-            self._libs.append(v)
+    def lib(self, name: str, section: str = None, **options) -> None:
+        """Load a library section with optional backend-specific options.
+
+        ``lib(path, 'tt', lang='ngspice')`` emits a sectioned foreign include
+        for VACASK. See :meth:`include` for option and deduplication semantics.
+        """
+        directive = _IncludeDirective(name, section, options)
+        if directive not in self._lib_directives:
+            self._lib_directives.append(directive)
         else:
-            self._logger.warn(f"Duplicated lib {v}")
+            self._logger.warning(f"Duplicated lib {(name, section)}")
 
     ##############################################
 
@@ -721,10 +765,12 @@ class Circuit(Netlist):
     ##############################################
 
     def _str_includes(self, simulator: 'Simulator' = None) -> list[str]:
-        if self._includes:
+        if self._include_directives:
             # ngspice don't like // in path, thus ensure we write real paths
             real_paths = []
-            for path in self._includes:
+            for directive in self._include_directives:
+                directive.require_spice_compatible()
+                path = directive.path
                 if simulator:
                     path_flavour = path.parent.joinpath(f"{path.name}@{simulator}")
                     if path_flavour.exists():
@@ -737,10 +783,12 @@ class Circuit(Netlist):
     ##############################################
 
     def _str_libs(self, simulator: 'Simulator' = None) -> list[str]:
-        if self._libs:
+        if self._lib_directives:
             libs = []
-            for lib, section in self._libs:
-                lib = Path(str(lib)).resolve()
+            for directive in self._lib_directives:
+                directive.require_spice_compatible()
+                lib = Path(str(directive.path)).resolve()
+                section = directive.section
                 if simulator:
                     lib_flavour = Path(f"{lib}@{simulator}")
                     if lib_flavour.exists():
