@@ -132,6 +132,33 @@ class TestVacaskNetlistGeneration(unittest.TestCase):
 
     ##############################################
 
+    def test_diode_perimeter_is_preserved(self):
+        circuit = Circuit('Diode perimeter')
+        circuit.model('junction', 'D', Is=1e-14)
+        circuit.D(1, 'anode', circuit.gnd, model='junction', area=2, pj=3)
+        simulation = self._make_simulation(circuit)
+        simulation.operating_point(run=False)
+        netlist = str(simulation)
+        self.assertIn('d1 (anode 0) junction', netlist)
+        self.assertIn('area=2', netlist)
+        self.assertIn('pj=3', netlist)
+        self.assertIn('pj=3', circuit.str(simulator='ngspice'))
+
+    ##############################################
+
+    def test_pulse_source_keeps_ac_excitation(self):
+        circuit = Circuit('Pulse with AC')
+        circuit.PulseVoltageSource('in', 'inp', 0, initial_value=0, pulsed_value=3.3,
+                                   pulse_width=1e-9, period=2e-9, ac_magnitude=0.75)
+        simulation = self._make_simulation(circuit)
+        simulation.operating_point(run=False)
+        self.assertIn('mag=0.75', str(simulation))
+        self.assertIn('type="pulse"', str(simulation))
+        self.assertIn('AC 0.75', circuit.str(simulator='ngspice'))
+        self.assertIn('PULSE(', circuit.str(simulator='ngspice'))
+
+    ##############################################
+
     def test_mosfet_model(self):
         circuit = Circuit('MOSFET Test')
         circuit.model('nch', 'NMOS', level=1, Kp=110e-6, Vto=0.7)

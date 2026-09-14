@@ -1193,7 +1193,7 @@ class Diode(FixedPinElement):
     model = ModelPositionalParameter(position=0, key_parameter=True)
     area = FloatKeyParameter('area', spectre_name='area')
     multiplier = IntKeyParameter('m', spectre_name='$mfactor', spectre_default=1)
-    pj = FloatKeyParameter('pj')
+    pj = FloatKeyParameter('pj', spectre_name='pj')
     off = FlagParameter('off')
     ic = FloatPairKeyParameter('ic')
     temperature = FloatKeyParameter('temp', unit=U_Degree)
