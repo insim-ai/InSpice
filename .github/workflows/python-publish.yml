@@ -1,4 +1,4 @@
-# This workflow will upload a Python Package to PyPI when a release is created
+# Publish InSpice on GitHub releases and vacask-bin when its version pin changes.
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
 
 # This workflow uses actions that are not certified by GitHub.
@@ -11,12 +11,22 @@ name: Upload Python Package
 on:
   release:
     types: [published]
+  push:
+    branches: [main]
+    paths:
+      - vacask-bin/VACASK_VERSION
+  workflow_dispatch:
+
+concurrency:
+  group: pypi-${{ github.event_name == 'release' && 'inspice' || 'vacask-bin' }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   release-build:
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
 
     steps:
@@ -39,6 +49,7 @@ jobs:
           path: dist/
 
   vacask-bin-build:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
