@@ -6,6 +6,7 @@ import csv
 import hashlib
 import io
 import os
+from pathlib import Path
 import re
 import shutil
 import stat
@@ -118,10 +119,40 @@ def build_package_layout(extracted_dir, pkg_dir, version, exe_suffix):
             if f.lower().endswith('.dll'):
                 shutil.copy2(os.path.join(sim_dir, f), os.path.join(data_bin, f))
 
-    # Copy lib/vacask (mod + inc)
-    vacask_lib = os.path.join(lib_dir, 'vacask')
-    if os.path.isdir(vacask_lib):
-        copy_tree(vacask_lib, os.path.join(data_lib, 'vacask'))
+    # Windows stages resources directly under lib; normalize to the package
+    # layout used by vacask_bin.MOD_DIR. Do not copy build libraries/metadata.
+    if exe_suffix == '.exe':
+        for directory in ('mod', 'inc', 'python'):
+            src = os.path.join(lib_dir, directory)
+            if os.path.isdir(src):
+                copy_tree(src, os.path.join(data_lib, 'vacask', directory))
+    else:
+        vacask_lib = os.path.join(lib_dir, 'vacask')
+        if os.path.isdir(vacask_lib):
+            copy_tree(vacask_lib, os.path.join(data_lib, 'vacask'))
+
+
+def validate_wheel(extracted_dir, wheel_path, exe_suffix):
+    """Require all source models and builtins to survive packaging unchanged."""
+    lib = Path(extracted_dir) / 'lib'
+    if exe_suffix != '.exe':
+        lib /= 'vacask'
+    models = sorted((lib / 'mod').rglob('*.osdi'))
+    if not models:
+        raise ValueError(f'No OSDI files in release archive: {lib / "mod"}')
+    builtins = lib / 'inc' / 'builtins.inc'
+    if not builtins.is_file():
+        raise ValueError(f'Missing release payload: {builtins}')
+    with zipfile.ZipFile(wheel_path) as whl:
+        for source in [*models, builtins]:
+            name = 'vacask_bin/data/lib/vacask/' + source.relative_to(lib).as_posix()
+            try:
+                data = whl.read(name)
+            except KeyError:
+                raise ValueError(f'Missing wheel payload: {name}') from None
+            if data != source.read_bytes():
+                raise ValueError(f'Wheel payload differs from release: {name}')
+    print(f'  Validated {len(models)} OSDI files and builtins.inc')
 
 
 def sha256_digest(data):
@@ -283,7 +314,8 @@ def main():
         build_package_layout(extracted_root, pkg_dir, version, info['exe_suffix'])
 
         # Create wheel
-        make_wheel(pkg_dir, version, info['wheel_tag'], args.output_dir)
+        wheel = make_wheel(pkg_dir, version, info['wheel_tag'], args.output_dir)
+        validate_wheel(extracted_root, wheel, info['exe_suffix'])
 
         # Cleanup
         shutil.rmtree(extract_dir)
