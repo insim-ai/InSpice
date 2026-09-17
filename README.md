@@ -44,6 +44,39 @@ circuit.R('1', 'input', 'output', 1@kΩ)
 circuit.C('1', 'output', circuit.gnd, 1@µF)
 ```
 
+### Backend-specific include options
+
+`Circuit.include()` and `Circuit.lib()` accept extra keyword arguments for the
+target simulator's include directive. For example, a parser-enabled VACASK build
+can load SPICE libraries directly:
+
+```python
+from InSpice.Spice.Netlist import Circuit
+from InSpice.Spice.Simulator import Simulator
+
+circuit = Circuit('Foreign model libraries')
+circuit.include('native-models.lib')
+circuit.include('ngspice-models.lib', lang='ngspice')
+circuit.lib('xyce-corners.lib', 'tt', lang='xyce')
+
+simulation = Simulator.factory(simulator='vacask').simulation(circuit)
+simulation.operating_point(run=False)
+print(simulation)
+```
+
+The foreign directives become `include "/absolute/path/ngspice-models.lib"
+lang=ngspice` and `include "/absolute/path/xyce-corners.lib" lang=xyce section=tt`.
+VACASK supports `lang` and `section` options as bare identifiers; unsupported
+options or values raise `ValueError` during serialization. Analysis commands
+remain in the native VACASK control block.
+
+Calls without extra options retain their existing behavior. Options participate
+in duplicate detection and are preserved by `Circuit.clone()` and
+`Circuit.copy_to()`. Generating
+ordinary SPICE output (including ngspice and Xyce output) with extra options
+raises `ValueError`, rather than silently dropping them. The caller chooses
+options appropriate to the target; InSpice does not infer a dialect from a path.
+
 ## Documentation
 
 For detailed documentation, please refer to the examples and docstrings.

@@ -27,6 +27,7 @@ VACASK uses Spectre-like syntax, not SPICE. This module translates InSpice Circu
 ####################################################################################################
 
 import logging
+import re
 from pathlib import Path
 
 ####################################################################################################
@@ -70,6 +71,25 @@ class VacaskSimulation(Simulation):
 
     ##############################################
 
+    @staticmethod
+    def _format_include(directive):
+        """Format the include options supported by VACASK's native parser."""
+        options = dict(directive.options)
+        if directive.section is not None and directive.section != '':
+            options['section'] = directive.section
+        unknown = options.keys() - {'lang', 'section'}
+        if unknown:
+            raise ValueError(f"VACASK include does not support options: {', '.join(sorted(unknown))}")
+        parts = [f'include "{Path(str(directive.path)).resolve()}"']
+        for name, value in options.items():
+            # Both options are bare identifiers in the native include grammar.
+            if not isinstance(value, str) or not re.fullmatch(r'[a-zA-Z_$][a-zA-Z_$0-9]*', value):
+                raise ValueError(f"VACASK include {name} must be a bare identifier, got {value!r}")
+            parts.append(f'{name}={value}')
+        return ' '.join(parts)
+
+    ##############################################
+
     def to_spectre(self):
         """Generate the complete VACASK simulation netlist using distributed to_spectre() calls."""
         context = SpectreContext(osdi_path=self._osdi_path)
@@ -89,18 +109,10 @@ class VacaskSimulation(Simulation):
         lines.append('')
 
         # Include directives
-        has_includes = False
-        for path in self._circuit._includes:
-            lines.append(f'include "{Path(path).resolve()}"')
-            has_includes = True
-        for lib_path, section in self._circuit._libs:
-            resolved = Path(str(lib_path)).resolve()
-            if section:
-                lines.append(f'include "{resolved}" section={section}')
-            else:
-                lines.append(f'include "{resolved}"')
-            has_includes = True
-        if has_includes:
+        directives = self._circuit._include_directives + self._circuit._lib_directives
+        for directive in directives:
+            lines.append(self._format_include(directive))
+        if directives:
             lines.append('')
 
         # Collect OSDI files from default models too

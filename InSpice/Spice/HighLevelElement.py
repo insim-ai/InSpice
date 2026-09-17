@@ -239,13 +239,14 @@ class PulseMixin(SourceMixinAbc):
                  pulse_width, period,
                  delay_time=0, rise_time=0, fall_time=0,
                  phase=None,
-                 dc_offset=0):
+                 dc_offset=0, ac_magnitude=None):
 
         # Fixme: default
         #  rise_time, fall_time = Tstep
         #  pulse_width, period = Tstop
 
         self.dc_offset = self.AS_UNIT(dc_offset)   # Fixme: -> SourceMixinAbc
+        self.ac_magnitude = self.AS_UNIT(ac_magnitude) if ac_magnitude is not None else None
         self.initial_value = self.AS_UNIT(initial_value)
         self.pulsed_value = self.AS_UNIT(pulsed_value)
         self.delay_time = as_s(delay_time)
@@ -287,6 +288,7 @@ class PulseMixin(SourceMixinAbc):
         # Fixme: to func?
         return join_list((
             'DC {}'.format(str_spice(self.dc_offset)),
+            f'AC {str_spice(self.ac_magnitude)}' if self.ac_magnitude is not None else None,
             'PULSE(' +
             join_list((self.initial_value, self.pulsed_value, self.delay_time,
                        self.rise_time, self.fall_time, self.pulse_width, self.period,
@@ -299,6 +301,8 @@ class PulseMixin(SourceMixinAbc):
         dc_val = format_spectre_value(self.dc_offset)
         parts.append(f"dc={dc_val}")
         parts.append('type="pulse"')
+        if self.ac_magnitude is not None:
+            parts.append(f"mag={format_spectre_value(self.ac_magnitude)}")
         parts.append(f"val0={format_spectre_value(self.initial_value)}")
         parts.append(f"val1={format_spectre_value(self.pulsed_value)}")
         delay = self.delay_time
