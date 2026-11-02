@@ -12,6 +12,7 @@
 
 """Unit tests for the VACASK simulator interface."""
 
+import sys
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -430,12 +431,15 @@ class TestVacaskRawFile(unittest.TestCase):
 
 class TestVacaskServerErrorHandling(unittest.TestCase):
 
+    FAILING_COMMAND = sys.executable
+    FAILING_INPUT = 'raise SystemExit(1)'
+
     def test_nonzero_exit_code_raises_runtime_error(self):
         """V4: non-zero exit code must raise RuntimeError, not pass silently."""
         from InSpice.Spice.Vacask.Server import VacaskServer
-        server = VacaskServer(vacask_command='false')  # 'false' always exits 1
+        server = VacaskServer(vacask_command=self.FAILING_COMMAND)
         with self.assertRaises(RuntimeError) as ctx:
-            server('dummy input')
+            server(self.FAILING_INPUT)
         self.assertIn('exited with code', str(ctx.exception))
 
     def test_temp_dir_cleaned_on_error(self):
@@ -445,11 +449,11 @@ class TestVacaskServerErrorHandling(unittest.TestCase):
         import tempfile
         from InSpice.Spice.Vacask.Server import VacaskServer
 
-        server = VacaskServer(vacask_command='false')
+        server = VacaskServer(vacask_command=self.FAILING_COMMAND)
         # Count temp dirs before
         before = set(glob.glob(os.path.join(tempfile.gettempdir(), 'tmp*')))
         try:
-            server('dummy input')
+            server(self.FAILING_INPUT)
         except RuntimeError:
             pass
         after = set(glob.glob(os.path.join(tempfile.gettempdir(), 'tmp*')))

@@ -130,9 +130,9 @@ def test_legacy_directives_and_views(tmp_path):
     assert circuit._includes == [path]
     assert circuit._libs == [(str(path), 'tt'), (path, '')]
     for simulator in (None, 'ngspice', 'xyce'):
-        netlist = circuit.str(simulator=simulator)
-        assert netlist.count(f'.include {path}\n') == 1
-        assert netlist.count(f'.lib {path} tt\n') == 1
+        lines = circuit.str(simulator=simulator).splitlines()
+        assert lines.count(f'.include {path}') == 1
+        assert lines.count(f'.lib {path} tt') == 1
     assert f'include "{format_spectre_path(path)}"\n' in vacask_netlist(circuit)
 
 
@@ -143,6 +143,7 @@ def test_spice_library_flavour_selection(tmp_path):
     circuit = Circuit('Library flavour')
     circuit.include(path)
     circuit.lib(path, 'tt')
-    netlist = circuit.str(simulator='xyce')
-    assert f'.include {flavour}\n' in netlist
-    assert f'.lib {flavour} tt\n' in netlist
+    # SPICE netlists end lines with os.linesep, so compare whole lines
+    lines = circuit.str(simulator='xyce').splitlines()
+    assert f'.include {flavour}' in lines
+    assert f'.lib {flavour} tt' in lines
