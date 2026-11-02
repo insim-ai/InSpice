@@ -25,7 +25,7 @@ used by the distributed to_spectre() methods across InSpice classes.
 ####################################################################################################
 
 import logging
-import os
+import pathlib
 
 ####################################################################################################
 
@@ -131,6 +131,27 @@ def format_spectre_value(value):
 
 ####################################################################################################
 
+def format_spectre_path(path):
+    """Format a file path for a quoted string in Spectre/VACASK output.
+
+    VACASK processes escape sequences in double-quoted strings (e.g. ``\\n``), so any backslash
+    in a path would corrupt it: Windows separators (e.g. ``C:\\path\\to\\file``) as well as the
+    rarer literal backslash in a POSIX file name.  A ``"`` (legal in POSIX file names) would end
+    the string early.  Escaping both (e.g. ``C:\\\\path\\\\to\\\\file``) makes VACASK read back
+    exactly the original path on any OS.  Typical POSIX paths contain neither character, so
+    they pass through unchanged.
+
+    The returned string is meant to go between double quotes in the netlist; it is not a
+    usable file system path itself.
+
+    See https://codeberg.org/arpadbuermen/VACASK/src/branch/main/docs/input-strings.md
+    """
+    if not isinstance(path, pathlib.PurePath):
+        path = pathlib.Path(path)
+    return str(path).replace('\\', '\\\\').replace('"', '\\"')
+
+####################################################################################################
+
 def spectre_identifier(name):
     """Ensure a name is a valid Spectre identifier (can't start with a digit)."""
     name = name.lower()
@@ -207,8 +228,8 @@ class SpectreContext:
 
     def osdi_file_path(self, relative_path):
         if self.osdi_path:
-            return os.path.join(self.osdi_path, relative_path)
-        return relative_path
+            return format_spectre_path(pathlib.Path(self.osdi_path, relative_path))
+        return format_spectre_path(relative_path)
 
     def register_osdi(self, osdi_file):
         self.osdi_files.add(osdi_file)
