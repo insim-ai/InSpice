@@ -29,6 +29,11 @@ dependencies = [
     "diskcache",
     "h5py",
     "ply",
+
+    # For ngspice post-installation to work
+    "py7zr; sys_platform == 'win32'",
+    "colorama; sys_platform == 'win32'",
+    "requests; sys_platform == 'win32'",
 ]
 
 [project.urls]

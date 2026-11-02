@@ -256,8 +256,9 @@ class InSpicePostInstallation:
         print(rule)
         print(content)
         print(rule)
-        cm_path = spice64_path.joinpath('lib', 'ngspice')
-        content = content.replace('../lib/ngspice/', str(cm_path) + '/')
+        cm_path = str(spice64_path.joinpath('lib', 'ngspice')).replace('\\', '/')+'/'
+        content = content.replace('C:/Spice64/lib/ngspice/', cm_path)
+        content = content.replace('../lib/ngspice/', cm_path)
         print(rule)
         print(content)
         print(rule)
