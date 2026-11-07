@@ -45,7 +45,7 @@ def run_example(file_name, no_gui=True):
     env['PYTHONUNBUFFERED'] = '1'  # Ensure output is displayed immediately
     
     try:
-        result = subprocess.run(['python', file_name], env=env, check=True)
+        result = subprocess.run([sys.executable, file_name], env=env, check=True)
         return True
     except subprocess.CalledProcessError as e:
         print(f"Error running {file_name}: {e}")

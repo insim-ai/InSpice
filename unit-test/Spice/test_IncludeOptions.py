@@ -6,6 +6,7 @@ import pytest
 
 from InSpice.Spice.Netlist import Circuit
 from InSpice.Spice.Simulator import Simulator
+from InSpice.Spice.Spectre import format_spectre_path
 
 
 def vacask_netlist(circuit):
@@ -25,10 +26,10 @@ def test_native_and_foreign_includes_coexist(tmp_path):
     circuit.lib(native, 'native_tt')
 
     netlist = vacask_netlist(circuit)
-    assert f'include "{native}"\n' in netlist
-    assert f'include "{foreign}" lang=ngspice\n' in netlist
-    assert f'include "{foreign}" lang=xyce section=tt\n' in netlist
-    assert f'include "{native}" section=native_tt\n' in netlist
+    assert f'include "{format_spectre_path(native)}"\n' in netlist
+    assert f'include "{format_spectre_path(foreign)}" lang=ngspice\n' in netlist
+    assert f'include "{format_spectre_path(foreign)}" lang=xyce section=tt\n' in netlist
+    assert f'include "{format_spectre_path(native)}" section=native_tt\n' in netlist
     assert netlist.index('include ') < netlist.index('control\n')
     assert 'analysis op1 op' in netlist
 
@@ -62,8 +63,8 @@ def test_library_options_and_sections_survive_clone(tmp_path):
     assert vacask_netlist(clone) == vacask_netlist(circuit)
     lines = [line for line in vacask_netlist(clone).splitlines() if line.startswith('include ')]
     assert len(lines) == 5
-    assert f'include "{path}" lang=ngspice section=ff' in lines
-    assert f'include "{path}" lang=ngspice' in lines
+    assert f'include "{format_spectre_path(path)}" lang=ngspice section=ff' in lines
+    assert f'include "{format_spectre_path(path)}" lang=ngspice' in lines
     # Cloning owns its option dictionaries as well as its directive lists.
     assert clone._include_directives[0].options is not circuit._include_directives[0].options
     assert clone._lib_directives[0].options is not circuit._lib_directives[0].options
@@ -83,9 +84,9 @@ def test_copy_to_preserves_directives_and_options(tmp_path):
     assert source.copy_to(target) is target
 
     netlist = vacask_netlist(target)
-    assert f'include "{path}" lang=ngspice\n' in netlist
-    assert f'include "{path}" lang=xyce section=tt\n' in netlist
-    assert f'include "{tmp_path / "native.lib"}"\n' in netlist
+    assert f'include "{format_spectre_path(path)}" lang=ngspice\n' in netlist
+    assert f'include "{format_spectre_path(path)}" lang=xyce section=tt\n' in netlist
+    assert f'include "{format_spectre_path(tmp_path / "native.lib")}"\n' in netlist
     assert 'parameters supply=1.8' in netlist
     assert 'r1 (out 0)' in netlist
 
@@ -129,10 +130,10 @@ def test_legacy_directives_and_views(tmp_path):
     assert circuit._includes == [path]
     assert circuit._libs == [(str(path), 'tt'), (path, '')]
     for simulator in (None, 'ngspice', 'xyce'):
-        netlist = circuit.str(simulator=simulator)
-        assert netlist.count(f'.include {path}\n') == 1
-        assert netlist.count(f'.lib {path} tt\n') == 1
-    assert f'include "{path}"\n' in vacask_netlist(circuit)
+        lines = circuit.str(simulator=simulator).splitlines()
+        assert lines.count(f'.include {path}') == 1
+        assert lines.count(f'.lib {path} tt') == 1
+    assert f'include "{format_spectre_path(path)}"\n' in vacask_netlist(circuit)
 
 
 def test_spice_library_flavour_selection(tmp_path):
@@ -142,6 +143,7 @@ def test_spice_library_flavour_selection(tmp_path):
     circuit = Circuit('Library flavour')
     circuit.include(path)
     circuit.lib(path, 'tt')
-    netlist = circuit.str(simulator='xyce')
-    assert f'.include {flavour}\n' in netlist
-    assert f'.lib {flavour} tt\n' in netlist
+    # SPICE netlists end lines with os.linesep, so compare whole lines
+    lines = circuit.str(simulator='xyce').splitlines()
+    assert f'.include {flavour}' in lines
+    assert f'.lib {flavour} tt' in lines

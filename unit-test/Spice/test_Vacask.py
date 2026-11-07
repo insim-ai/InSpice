@@ -12,11 +12,14 @@
 
 """Unit tests for the VACASK simulator interface."""
 
+import sys
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from InSpice.Spice.Netlist import Circuit
 from InSpice.Spice.Simulator import Simulator
+from InSpice.Spice.Spectre import format_spectre_path
 from InSpice.Unit import *
 
 ####################################################################################################
@@ -128,7 +131,7 @@ class TestVacaskNetlistGeneration(unittest.TestCase):
         netlist = str(simulation)
         self.assertIn('model mod_1n4148 sp_diode', netlist)
         self.assertIn('d1 (out 0) mod_1n4148', netlist)
-        self.assertIn('spice/diode.osdi', netlist)
+        self.assertIn(format_spectre_path(Path('spice/diode.osdi')), netlist)
 
     ##############################################
 
@@ -428,12 +431,15 @@ class TestVacaskRawFile(unittest.TestCase):
 
 class TestVacaskServerErrorHandling(unittest.TestCase):
 
+    FAILING_COMMAND = sys.executable
+    FAILING_INPUT = 'raise SystemExit(1)'
+
     def test_nonzero_exit_code_raises_runtime_error(self):
         """V4: non-zero exit code must raise RuntimeError, not pass silently."""
         from InSpice.Spice.Vacask.Server import VacaskServer
-        server = VacaskServer(vacask_command='false')  # 'false' always exits 1
+        server = VacaskServer(vacask_command=self.FAILING_COMMAND)
         with self.assertRaises(RuntimeError) as ctx:
-            server('dummy input')
+            server(self.FAILING_INPUT)
         self.assertIn('exited with code', str(ctx.exception))
 
     def test_temp_dir_cleaned_on_error(self):
@@ -443,11 +449,11 @@ class TestVacaskServerErrorHandling(unittest.TestCase):
         import tempfile
         from InSpice.Spice.Vacask.Server import VacaskServer
 
-        server = VacaskServer(vacask_command='false')
+        server = VacaskServer(vacask_command=self.FAILING_COMMAND)
         # Count temp dirs before
         before = set(glob.glob(os.path.join(tempfile.gettempdir(), 'tmp*')))
         try:
-            server('dummy input')
+            server(self.FAILING_INPUT)
         except RuntimeError:
             pass
         after = set(glob.glob(os.path.join(tempfile.gettempdir(), 'tmp*')))
@@ -522,6 +528,11 @@ class TestVacaskIncludesAndLibs(unittest.TestCase):
     def _make_simulation(self, circuit):
         return self.simulator.simulation(circuit)
 
+    @staticmethod
+    def _resolved(path):
+        # Includes are emitted resolved (gains a drive letter on Windows)
+        return format_spectre_path(Path(path).resolve())
+
     ##############################################
 
     def test_includes_in_spectre_output(self):
@@ -534,7 +545,7 @@ class TestVacaskIncludesAndLibs(unittest.TestCase):
         simulation.operating_point(run=False)
         netlist = str(simulation)
 
-        self.assertIn('include "/some/path/model.lib"', netlist)
+        self.assertIn(f'include "{self._resolved("/some/path/model.lib")}"', netlist)
 
     ##############################################
 
@@ -548,7 +559,7 @@ class TestVacaskIncludesAndLibs(unittest.TestCase):
         simulation.operating_point(run=False)
         netlist = str(simulation)
 
-        self.assertIn('include "/pdk/models/corners.lib" section=tt', netlist)
+        self.assertIn(f'include "{self._resolved("/pdk/models/corners.lib")}" section=tt', netlist)
 
     ##############################################
 
@@ -562,7 +573,7 @@ class TestVacaskIncludesAndLibs(unittest.TestCase):
         simulation.operating_point(run=False)
         netlist = str(simulation)
 
-        self.assertIn('include "/pdk/models/all.lib"', netlist)
+        self.assertIn(f'include "{self._resolved("/pdk/models/all.lib")}"', netlist)
         self.assertNotIn('section=', netlist)
 
     ##############################################
@@ -592,7 +603,7 @@ class TestVacaskIncludesAndLibs(unittest.TestCase):
         simulation.operating_point(run=False)
         netlist = str(simulation)
 
-        include_pos = netlist.index('include "/some/path/model.lib"')
+        include_pos = netlist.index(f'include "{self._resolved("/some/path/model.lib")}"')
         load_pos = netlist.index('load ')
         self.assertLess(include_pos, load_pos)
 

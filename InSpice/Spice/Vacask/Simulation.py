@@ -33,7 +33,7 @@ from pathlib import Path
 ####################################################################################################
 
 from ..Simulation import Simulation
-from ..Spectre import SpectreContext, format_spectre_value, DEFAULT_MODELS
+from ..Spectre import SpectreContext, format_spectre_path, format_spectre_value, DEFAULT_MODELS
 
 ####################################################################################################
 
@@ -80,7 +80,7 @@ class VacaskSimulation(Simulation):
         unknown = options.keys() - {'lang', 'section'}
         if unknown:
             raise ValueError(f"VACASK include does not support options: {', '.join(sorted(unknown))}")
-        parts = [f'include "{Path(str(directive.path)).resolve()}"']
+        parts = [f'include "{format_spectre_path(Path(str(directive.path)).resolve())}"']
         for name, value in options.items():
             # Both options are bare identifiers in the native include grammar.
             if not isinstance(value, str) or not re.fullmatch(r'[a-zA-Z_$][a-zA-Z_$0-9]*', value):

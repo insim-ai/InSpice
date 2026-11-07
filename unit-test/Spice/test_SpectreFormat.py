@@ -12,10 +12,12 @@
 
 """Unit tests for the distributed to_spectre() methods across InSpice classes."""
 
+import re
 import unittest
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from InSpice.Spice.Netlist import Circuit, SubCircuit
-from InSpice.Spice.Spectre import SpectreContext
+from InSpice.Spice.Spectre import SpectreContext, format_spectre_path
 from InSpice.Unit import *
 
 ####################################################################################################
@@ -359,7 +361,38 @@ class TestSpectreContext(unittest.TestCase):
         self.assertIn('vsource', ctx.builtin_models)
         self.assertIn('R', ctx.default_models)
         self.assertEqual(ctx.osdi_file_path('spice/resistor.osdi'),
-                         '/path/to/osdi/spice/resistor.osdi')
+                         format_spectre_path(Path('/path/to/osdi', 'spice/resistor.osdi')))
+
+####################################################################################################
+
+class TestSpectrePath(unittest.TestCase):
+
+    def assert_survives_string_escaping(self, path):
+        formatted = format_spectre_path(path)
+        # Backslashes and quotes may only appear as the escapes '\\' and '\"'; anything else
+        # would be interpreted by VACASK (e.g. '\n') or end the string early
+        self.assertRegex(formatted, r'^(?:[^\\"]|\\[\\"])*$')
+        # Undoing the escaping must give back the same path components
+        unescaped = re.sub(r'\\(.)', r'\1', formatted)
+        self.assertEqual(type(path)(unescaped).parts, path.parts)
+
+    def test_windows_path(self):
+        self.assert_survives_string_escaping(PureWindowsPath(r'C:\Program Files\models\resistor.osdi'))
+
+    def test_posix_path_with_backslash(self):
+        # On POSIX a backslash is a file name character, not a separator ('\n' here is an escape)
+        self.assert_survives_string_escaping(PurePosixPath('/models/odd\\name.osdi'))
+
+    def test_posix_path_with_quote(self):
+        self.assert_survives_string_escaping(PurePosixPath('/models/odd"name.osdi'))
+
+    def test_plain_posix_path_is_unchanged(self):
+        self.assertEqual(format_spectre_path(PurePosixPath('/models/resistor.osdi')),
+                         '/models/resistor.osdi')
+
+    def test_accepts_str(self):
+        self.assertEqual(format_spectre_path('spice/resistor.osdi'),
+                         format_spectre_path(Path('spice/resistor.osdi')))
 
 ####################################################################################################
 
